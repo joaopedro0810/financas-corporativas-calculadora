@@ -186,7 +186,27 @@
   .table-scroll { max-height: 320px; overflow-y: auto; }
   .table-info { color: var(--text-muted); font-size: .82rem; margin-top: 8px; }
 
-  /* --- Mobile: sidebar vira barra inferior fixa --- */
+  .fc-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .fc-row input {
+    background: var(--bg-entry); color: var(--accent); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; font-family: "Consolas", monospace; font-size: .9rem;
+  }
+  .fc-row .fc-t { width: 90px; flex: none; }
+  .fc-row .fc-v { flex: 1; min-width: 0; }
+  .fc-row input:focus { outline: none; border-color: var(--accent); }
+  .fc-row .fc-remove {
+    flex: none; background: transparent; color: var(--error); border: 1px solid var(--border);
+    border-radius: 6px; width: 32px; height: 32px; cursor: pointer; font-size: .9rem;
+  }
+  .fc-row .fc-remove:hover { background: var(--bg-card); }
+  .btn-add {
+    background: var(--bg-card); color: var(--accent); border: 1px dashed var(--border);
+    border-radius: 8px; padding: 9px 16px; font-family: inherit; font-size: .85rem;
+    font-weight: 700; cursor: pointer; margin: 4px 0 6px 0;
+  }
+  .btn-add:hover { border-color: var(--accent); }
+
+  /* --- Mobile: sidebar vira barra inferior fixa e rolável --- */
   @media (max-width: 860px) {
     .layout { flex-direction: column; }
     nav.sidebar {
@@ -195,7 +215,8 @@
       left: 0; right: 0; bottom: 0;
       width: auto;
       flex-direction: row;
-      justify-content: space-around;
+      justify-content: flex-start;
+      overflow-x: auto;
       border-right: none;
       border-top: 1px solid var(--border);
       padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)) 4px;
@@ -206,10 +227,12 @@
       flex-direction: column;
       align-items: center;
       gap: 2px;
-      padding: 6px 4px;
-      font-size: .66rem;
+      padding: 6px 8px;
+      font-size: .64rem;
       border-radius: 8px;
-      flex: 1;
+      flex: none;
+      min-width: 68px;
+      white-space: nowrap;
     }
     nav.sidebar button.navbtn .icon { font-size: 1.2rem; }
     main.content {
@@ -235,6 +258,10 @@
     <button class="navbtn" data-tab="simples"><span class="icon">📈</span><span>Juros Simples</span></button>
     <button class="navbtn" data-tab="compostos"><span class="icon">📊</span><span>Juros Compostos</span></button>
     <button class="navbtn" data-tab="price"><span class="icon">🏦</span><span>Sistema Price</span></button>
+    <button class="navbtn" data-tab="fluxo"><span class="icon">💵</span><span>VPL/TIR/Payback</span></button>
+    <button class="navbtn" data-tab="perpetuidade"><span class="icon">♾️</span><span>Perpetuidade</span></button>
+    <button class="navbtn" data-tab="capital"><span class="icon">🏛️</span><span>Custo de Capital</span></button>
+    <button class="navbtn" data-tab="giro"><span class="icon">🔁</span><span>Capital de Giro</span></button>
     <button class="navbtn" data-tab="equivalencia"><span class="icon">🔄</span><span>Equivalência</span></button>
     <div class="hint">Todos os campos recalculam ao vivo.</div>
   </nav>
@@ -411,6 +438,133 @@
         </table>
       </div>
       <div class="table-info" id="p-tabelaInfo"></div>
+    </section>
+
+    <!-- ======================= FLUXO DE CAIXA: VPL / TIR / PAYBACK / ILL ======================= -->
+    <section class="panel" id="tab-fluxo" hidden>
+      <h2>Fluxo de Caixa — VPL, TIR, Payback e ILL</h2>
+      <div class="desc">
+        VPL = Σ CFₜ / (1+i)ᵗ &nbsp;|&nbsp; TIR: i tal que VPL = 0 &nbsp;|&nbsp; ILL = VPL / Investimento —
+        monte o fluxo completo (período 0 = investimento inicial, normalmente negativo; os demais
+        períodos podem ser positivos ou negativos, em qualquer ordem).
+      </div>
+
+      <div class="fields-row">
+        <div class="field"><label>Taxa de desconto / TMA (%)</label><input id="fc-taxa" value="15"></div>
+        <div class="field">
+          <label>Período</label>
+          <select id="fc-periodoUnidade">
+            <option>Diária</option><option>Mensal</option><option>Bimestral</option>
+            <option>Trimestral</option><option>Quadrimestral</option><option>Semestral</option><option selected>Anual</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="fc-linhas"></div>
+      <button type="button" class="btn-add" id="fc-add">+ Adicionar período</button>
+
+      <div class="result-panel" id="fc-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
+    </section>
+
+    <!-- ======================= PERPETUIDADE ======================= -->
+    <section class="panel" id="tab-perpetuidade" hidden>
+      <h2>Perpetuidade</h2>
+      <div class="desc">
+        PV = FC₁ / (i − g) — fluxo de caixa perpétuo, com ou sem crescimento constante (modelo de
+        Gordon). Deixe g = 0 para uma perpetuidade simples. Exige i &gt; g.
+      </div>
+
+      <div class="fields-row">
+        <div class="field"><label>Fluxo de caixa (FC₁, primeiro período)</label><input id="pp-fc" value="2500"></div>
+        <div class="field"><label>Taxa de desconto i (%)</label><input id="pp-taxa" value="0.8"></div>
+        <div class="field"><label>Crescimento g (%, opcional)</label><input id="pp-g" value="0.1"></div>
+      </div>
+
+      <div class="result-panel" id="pp-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
+    </section>
+
+    <!-- ======================= CUSTO DE CAPITAL (CAPM / CMPC) ======================= -->
+    <section class="panel" id="tab-capital" hidden>
+      <h2>Custo de Capital</h2>
+      <div class="desc">
+        CAPM: Ks = Rf + β × (Rm − Rf) &nbsp;|&nbsp; Custo de terceiros líquido de IR: Ki = Kd × (1 − IR)
+        &nbsp;|&nbsp; CMPC = We × Ks + Wd × Ki
+      </div>
+
+      <div class="subsection">Capital Próprio (Sócios) — CAPM</div>
+      <div class="fields-row">
+        <div class="field"><label>Taxa livre de risco (Rf, %)</label><input id="cc-rf" value="6"></div>
+        <div class="field"><label>Beta (β)</label><input id="cc-beta" value="1"></div>
+        <div class="field"><label>Retorno de mercado (Rm, %)</label><input id="cc-rm" value="12"></div>
+      </div>
+      <div class="result-panel" id="cc-ks-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
+
+      <div class="subsection">Capital de Terceiros (Credores)</div>
+      <div class="fields-row">
+        <div class="field"><label>Custo bruto da dívida (Kd, %)</label><input id="cc-kd" value="10"></div>
+        <div class="field"><label>Alíquota de IR (%)</label><input id="cc-ir" value="34"></div>
+      </div>
+      <div class="result-panel" id="cc-ki-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
+
+      <div class="subsection">CMPC (WACC)</div>
+      <div class="fields-row">
+        <div class="field"><label>Peso do capital próprio (We, %)</label><input id="cc-we" value="60"></div>
+        <div class="field"><label>Ks (%) — em branco usa o CAPM acima</label><input id="cc-ks-manual" value=""></div>
+      </div>
+      <div class="fields-row">
+        <div class="field"><label>Peso de terceiros (Wd, %)</label><input id="cc-wd" value="40"></div>
+        <div class="field"><label>Ki (%) — em branco usa o cálculo acima</label><input id="cc-ki-manual" value=""></div>
+      </div>
+      <div class="result-panel" id="cc-cmpc-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
+    </section>
+
+    <!-- ======================= CAPITAL DE GIRO (NCG) ======================= -->
+    <section class="panel" id="tab-giro" hidden>
+      <h2>Capital de Giro (NCG)</h2>
+      <div class="desc">
+        NCG = Estoques + Duplicatas a Receber − Fornecedores &nbsp;|&nbsp;
+        PME = (Estoques / CMV) × 360 &nbsp;|&nbsp; PMR = (Duplicatas a Receber / Vendas a Prazo) × 360
+        &nbsp;|&nbsp; PMP = (Fornecedores / Desembolso Anual) × 360 &nbsp;|&nbsp;
+        Ciclo Operacional = PME + PMR &nbsp;|&nbsp; Ciclo Financeiro = Ciclo Operacional − PMP
+        (base: ano comercial de 360 dias)
+      </div>
+
+      <div class="fields-row">
+        <div class="field"><label>Estoques</label><input id="cg-estoques" value="600000"></div>
+        <div class="field"><label>Duplicatas a Receber</label><input id="cg-duplicatas" value="700000"></div>
+        <div class="field"><label>Fornecedores (Contas a Pagar)</label><input id="cg-fornecedores" value="400000"></div>
+      </div>
+      <div class="fields-row">
+        <div class="field"><label>Vendas a prazo (no período)</label><input id="cg-vendas" value="3000000"></div>
+        <div class="field"><label>CMV (no período)</label><input id="cg-cmv" value="1800000"></div>
+        <div class="field"><label>Desembolso anual</label><input id="cg-desembolso" value="12000000"></div>
+      </div>
+
+      <div class="result-panel" id="cg-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
     </section>
 
     <!-- ======================= EQUIVALÊNCIA DE TAXAS ======================= -->
@@ -1071,6 +1225,263 @@ document.getElementById("tab-price").addEventListener("input", calcPrice);
 document.getElementById("tab-price").addEventListener("change", calcPrice);
 
 // ---------------------------------------------------------------------
+// Fluxo de Caixa: VPL, TIR, Payback simples/descontado, ILL
+// ---------------------------------------------------------------------
+function fcAddRow(t, v) {
+  const div = document.createElement("div");
+  div.className = "fc-row";
+  div.innerHTML =
+    `<input type="text" class="fc-t" placeholder="Período" value="${t}">` +
+    `<input type="text" class="fc-v" placeholder="Valor (negativo = saída)" value="${v}">` +
+    `<button type="button" class="fc-remove" title="Remover">✕</button>`;
+  document.getElementById("fc-linhas").appendChild(div);
+}
+
+document.getElementById("fc-add").addEventListener("click", () => {
+  const linhas = document.querySelectorAll("#fc-linhas .fc-row");
+  let proximoT = 0;
+  if (linhas.length) {
+    const ts = [...linhas].map((r) => parseNum(r.querySelector(".fc-t").value)).filter((t) => t != null);
+    if (ts.length) proximoT = Math.max(...ts) + 1;
+  }
+  fcAddRow(proximoT, "");
+  calcFluxo();
+});
+
+document.getElementById("fc-linhas").addEventListener("click", (e) => {
+  if (e.target.classList.contains("fc-remove")) {
+    e.target.closest(".fc-row").remove();
+    calcFluxo();
+  }
+});
+
+function fcLerLinhas() {
+  const mapa = new Map();
+  for (const row of document.querySelectorAll("#fc-linhas .fc-row")) {
+    const t = parseNum(row.querySelector(".fc-t").value);
+    const v = parseNum(row.querySelector(".fc-v").value);
+    if (t == null || v == null) continue;
+    mapa.set(t, (mapa.get(t) || 0) + v);
+  }
+  return [...mapa.entries()].map(([t, v]) => ({ t, v })).sort((a, b) => a.t - b.t);
+}
+
+// Payback: acumula os valores (mapValue decide se é o fluxo bruto ou descontado)
+// e interpola linearmente dentro do intervalo em que o acumulado cruza zero.
+function fcPayback(linhas, mapValue) {
+  let acumulado = 0;
+  let prevT = null;
+  for (const linha of linhas) {
+    const valor = mapValue(linha);
+    const novoAcumulado = acumulado + valor;
+    if (prevT === null && novoAcumulado >= 0) return linha.t;
+    if (prevT !== null && acumulado < 0 && novoAcumulado >= 0) {
+      const fracao = valor !== 0 ? -acumulado / valor : 0;
+      return prevT + (linha.t - prevT) * fracao;
+    }
+    acumulado = novoAcumulado;
+    prevT = linha.t;
+  }
+  return null;
+}
+
+function calcFluxo() {
+  const i = parseNum(val("fc-taxa"));
+  const unidade = val("fc-periodoUnidade").toLowerCase();
+  const linhas = fcLerLinhas();
+
+  setFormula("fc-result", "VPL = Σ CFₜ / (1+i)ᵗ");
+
+  if (i == null || linhas.length === 0) {
+    setRows("fc-result", [
+      ["VPL", "—"], ["TIR", "—"], ["Payback simples", "—"],
+      ["Payback descontado", "—"], ["ILL (VPL / Investimento)", "—"],
+    ]);
+    setStatus("fc-result", "Informe a taxa e ao menos um período com valor válido.", false);
+    return;
+  }
+
+  const iFrac = i / 100;
+  let vpl = 0;
+  for (const { t, v } of linhas) vpl += v / Math.pow(1 + iFrac, t);
+
+  const linha0 = linhas.find((l) => l.t === 0);
+  const investimento = linha0 && linha0.v < 0 ? -linha0.v : null;
+  const ill = investimento && investimento > 0 ? vpl / investimento : null;
+
+  const pbSimples = fcPayback(linhas, (l) => l.v);
+  const pbDescontado = fcPayback(linhas, (l) => l.v / Math.pow(1 + iFrac, l.t));
+
+  function vplDe(taxa) {
+    let total = 0;
+    for (const { t, v } of linhas) total += v / Math.pow(1 + taxa, t);
+    return total;
+  }
+  let lo = -0.999999, hi = 10.0;
+  let fLo = vplDe(lo), fHi = vplDe(hi);
+  let tir = null;
+  if (Number.isFinite(fLo) && Number.isFinite(fHi) && fLo * fHi <= 0) {
+    for (let iter = 0; iter < 200; iter++) {
+      const meio = (lo + hi) / 2;
+      const fMeio = vplDe(meio);
+      tir = meio;
+      if (Math.abs(fMeio) < 1e-7) break;
+      if ((fLo < 0) === (fMeio < 0)) { lo = meio; fLo = fMeio; } else { hi = meio; fHi = fMeio; }
+    }
+  }
+
+  const rows = [
+    ["VPL", fmtMoeda(vpl)],
+    [`TIR (ao período "${unidade}")`, tir != null ? fmtPct(tir * 100) : "não encontrada nesse intervalo"],
+    ["Payback simples", pbSimples != null ? `${fmtNum(pbSimples, 2)} períodos` : "não recupera o investimento"],
+    ["Payback descontado", pbDescontado != null ? `${fmtNum(pbDescontado, 2)} períodos` : "não recupera o investimento"],
+    ["ILL (VPL / Investimento)", ill != null ? fmtNum(ill, 4) : "defina um período 0 negativo (investimento)"],
+  ];
+  setRows("fc-result", rows);
+  setStatus("fc-result", "Calculado em tempo real ✓", true);
+}
+
+document.getElementById("tab-fluxo").addEventListener("input", calcFluxo);
+document.getElementById("tab-fluxo").addEventListener("change", calcFluxo);
+
+// linhas iniciais: exemplo de VPL a 15% a.a. (VPL esperado ≈ R$ 19.524,75)
+fcAddRow(0, "-100000");
+fcAddRow(1, "15000");
+fcAddRow(2, "25000");
+fcAddRow(3, "40000");
+fcAddRow(4, "55000");
+fcAddRow(5, "60000");
+
+// ---------------------------------------------------------------------
+// Perpetuidade (com ou sem crescimento — modelo de Gordon)
+// ---------------------------------------------------------------------
+function calcPerpetuidade() {
+  const fc = parseNum(val("pp-fc"));
+  const i = parseNum(val("pp-taxa"));
+  const g = parseNum(val("pp-g"));
+  setFormula("pp-result", "PV = FC₁ / (i − g)");
+  if (fc == null || i == null) {
+    setRows("pp-result", [["Valor Presente (PV)", "—"]]);
+    setStatus("pp-result", "Preencha o fluxo de caixa e a taxa de desconto.", false);
+    return;
+  }
+  const iFrac = i / 100;
+  const gFrac = (g || 0) / 100;
+  if (iFrac <= gFrac) {
+    setRows("pp-result", [["Valor Presente (PV)", "—"]]);
+    setStatus("pp-result", "A taxa i deve ser maior que o crescimento g.", false);
+    return;
+  }
+  const pv = fc / (iFrac - gFrac);
+  setRows("pp-result", [["Valor Presente (PV)", fmtMoeda(pv)]]);
+  setStatus("pp-result", "Calculado em tempo real ✓", true);
+}
+
+document.getElementById("tab-perpetuidade").addEventListener("input", calcPerpetuidade);
+document.getElementById("tab-perpetuidade").addEventListener("change", calcPerpetuidade);
+
+// ---------------------------------------------------------------------
+// Custo de Capital: CAPM, custo de terceiros líquido de IR e CMPC (WACC)
+// ---------------------------------------------------------------------
+function calcCAPM() {
+  const rf = parseNum(val("cc-rf"));
+  const beta = parseNum(val("cc-beta"));
+  const rm = parseNum(val("cc-rm"));
+  setFormula("cc-ks-result", "Ks = Rf + β × (Rm − Rf)");
+  if (rf == null || beta == null || rm == null) {
+    setRows("cc-ks-result", [["Custo do capital próprio (Ks)", "—"]]);
+    setStatus("cc-ks-result", "Preencha Rf, β e Rm.", false);
+    return null;
+  }
+  const ks = rf + beta * (rm - rf);
+  setRows("cc-ks-result", [["Custo do capital próprio (Ks)", fmtPct(ks)]]);
+  setStatus("cc-ks-result", "Calculado em tempo real ✓", true);
+  return ks;
+}
+
+function calcCustoTerceiros() {
+  const kd = parseNum(val("cc-kd"));
+  const ir = parseNum(val("cc-ir"));
+  setFormula("cc-ki-result", "Ki = Kd × (1 − IR)");
+  if (kd == null || ir == null) {
+    setRows("cc-ki-result", [["Custo de terceiros líq. de IR (Ki)", "—"]]);
+    setStatus("cc-ki-result", "Preencha Kd e a alíquota de IR.", false);
+    return null;
+  }
+  const ki = kd * (1 - ir / 100);
+  setRows("cc-ki-result", [["Custo de terceiros líq. de IR (Ki)", fmtPct(ki)]]);
+  setStatus("cc-ki-result", "Calculado em tempo real ✓", true);
+  return ki;
+}
+
+function calcCMPC() {
+  const ks = calcCAPM();
+  const ki = calcCustoTerceiros();
+  const we = parseNum(val("cc-we"));
+  const wd = parseNum(val("cc-wd"));
+  const ksManualRaw = val("cc-ks-manual").trim();
+  const kiManualRaw = val("cc-ki-manual").trim();
+  const ksUsado = ksManualRaw !== "" ? parseNum(ksManualRaw) : ks;
+  const kiUsado = kiManualRaw !== "" ? parseNum(kiManualRaw) : ki;
+
+  setFormula("cc-cmpc-result", "CMPC = We × Ks + Wd × Ki");
+  if (we == null || wd == null || ksUsado == null || kiUsado == null) {
+    setRows("cc-cmpc-result", [["CMPC (WACC)", "—"]]);
+    setStatus("cc-cmpc-result", "Preencha os pesos e garanta Ks/Ki calculados ou informados.", false);
+    return;
+  }
+  const cmpc = (we / 100) * ksUsado + (wd / 100) * kiUsado;
+  const rows = [["CMPC (WACC)", fmtPct(cmpc)]];
+  if (Math.abs(we + wd - 100) > 0.5) {
+    rows.push(["Atenção", `We + Wd = ${fmtNum(we + wd, 1)}% (deveria somar 100%)`]);
+  }
+  setRows("cc-cmpc-result", rows);
+  setStatus("cc-cmpc-result", "Calculado em tempo real ✓", true);
+}
+
+document.getElementById("tab-capital").addEventListener("input", calcCMPC);
+document.getElementById("tab-capital").addEventListener("change", calcCMPC);
+
+// ---------------------------------------------------------------------
+// Capital de Giro (NCG, PME, PMR, PMP, Ciclo Operacional/Financeiro)
+// ---------------------------------------------------------------------
+function calcGiro() {
+  const estoques = parseNum(val("cg-estoques"));
+  const duplicatas = parseNum(val("cg-duplicatas"));
+  const fornecedores = parseNum(val("cg-fornecedores"));
+  const vendas = parseNum(val("cg-vendas"));
+  const cmv = parseNum(val("cg-cmv"));
+  const desembolso = parseNum(val("cg-desembolso"));
+
+  setFormula("cg-result", "NCG = Estoques + Duplicatas a Receber − Fornecedores");
+  if (estoques == null || duplicatas == null || fornecedores == null) {
+    setRows("cg-result", [["NCG (Necessidade de Capital de Giro)", "—"]]);
+    setStatus("cg-result", "Preencha estoques, duplicatas a receber e fornecedores.", false);
+    return;
+  }
+
+  const ncg = estoques + duplicatas - fornecedores;
+  const rows = [["NCG (Necessidade de Capital de Giro)", fmtMoeda(ncg)]];
+
+  let pme = null, pmr = null, pmp = null;
+  if (cmv) { pme = (estoques / cmv) * 360; rows.push(["PME (Prazo Médio de Estocagem)", `${fmtNum(pme, 1)} dias`]); }
+  if (vendas) { pmr = (duplicatas / vendas) * 360; rows.push(["PMR (Prazo Médio de Recebimento)", `${fmtNum(pmr, 1)} dias`]); }
+  if (desembolso) { pmp = (fornecedores / desembolso) * 360; rows.push(["PMP (Prazo Médio de Pagamento)", `${fmtNum(pmp, 1)} dias`]); }
+  if (pme != null && pmr != null) {
+    const cicloOp = pme + pmr;
+    rows.push(["Ciclo Operacional (PME + PMR)", `${fmtNum(cicloOp, 1)} dias`]);
+    if (pmp != null) {
+      rows.push(["Ciclo Financeiro (Ciclo Op. − PMP)", `${fmtNum(cicloOp - pmp, 1)} dias`]);
+    }
+  }
+  setRows("cg-result", rows);
+  setStatus("cg-result", "Calculado em tempo real ✓", true);
+}
+
+document.getElementById("tab-giro").addEventListener("input", calcGiro);
+document.getElementById("tab-giro").addEventListener("change", calcGiro);
+
+// ---------------------------------------------------------------------
 // Equivalência de Taxas
 // ---------------------------------------------------------------------
 function calcEquivalencia() {
@@ -1100,6 +1511,10 @@ document.getElementById("tab-equivalencia").addEventListener("change", calcEquiv
 sTrocarModo();
 cTrocarModo();
 pTrocarModo();
+calcFluxo();
+calcPerpetuidade();
+calcCMPC();
+calcGiro();
 calcEquivalencia();
 mostrarAba("simples");
 </script>
