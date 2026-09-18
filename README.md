@@ -1,7 +1,9 @@
 # Calculadora Financeira
 
-Calculadora de matemática financeira feita para a disciplina de Finanças
-Corporativas (MBA Gestão Empresarial - FGV). Cobre:
+Calculadora financeira (juros simples, compostos, Sistema Price e equivalência de taxas) — MBA Gestão Empresarial FGV
+
+Feita para a disciplina de Finanças Corporativas (MBA Gestão Empresarial -
+FGV). Cobre:
 
 - **Juros Simples** — Montante, Capital inicial ou Prazo (com taxa e prazo em
   escalas diferentes, convertidos automaticamente).
@@ -19,10 +21,9 @@ Corporativas (MBA Gestão Empresarial - FGV). Cobre:
 ## Versão web (`index.html`)
 
 Página única em HTML/CSS/JS puro (sem dependências, sem build), responsiva
-para uso no celular. Basta abrir `index.html` em qualquer navegador, ou
-publicar via **GitHub Pages** (Settings → Pages → Deploy from branch → `main`
-→ `/ (root)`) — a página fica disponível em
-`https://<seu-usuário>.github.io/<repo>/`.
+para uso no celular. Publicada via GitHub Pages:
+
+**https://joaopedro0810.github.io/financas-corporativas-calculadora/**
 
 ## Versão desktop (`calculadora_financeira.py`)
 
