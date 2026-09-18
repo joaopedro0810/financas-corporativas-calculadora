@@ -963,6 +963,427 @@ class AbaPrice(ttk.Frame):
             self.resultado.set_status("Calculado em tempo real ✓ (busca numérica)", ok=True)
 
 
+class FluxoRow(ttk.Frame):
+    """Uma linha (período, valor) editável do fluxo de caixa, com botão de remover."""
+
+    def __init__(self, master, t, v, on_change, on_remove):
+        super().__init__(master, style="Card.TFrame")
+        self.var_t = tk.StringVar(value=str(t))
+        self.var_v = tk.StringVar(value=str(v))
+        ttk.Entry(self, textvariable=self.var_t, style="Dark.TEntry", font=FONT_MONO, width=8).pack(
+            side="left", padx=(0, 8)
+        )
+        ttk.Entry(self, textvariable=self.var_v, style="Dark.TEntry", font=FONT_MONO, width=22).pack(
+            side="left", padx=(0, 8), fill="x", expand=True
+        )
+        tk.Button(
+            self, text="✕", command=lambda: on_remove(self), fg=ERROR, bg=BG_ENTRY,
+            activebackground=BG_CARD, bd=0, relief="flat", width=3, cursor="hand2",
+        ).pack(side="left")
+        self._on_change = on_change
+        self.var_t.trace_add("write", lambda *_: self._on_change())
+        self.var_v.trace_add("write", lambda *_: self._on_change())
+
+    def get(self):
+        return parse_float(self.var_t.get()), parse_float(self.var_v.get())
+
+
+def _canvas_scrollavel(master):
+    """Cria um canvas com rolagem vertical (roda do mouse) e devolve o frame interno
+    onde o conteúdo deve ser colocado. Usado nas abas com muito conteúdo."""
+    canvas = tk.Canvas(master, bg=BG, highlightthickness=0)
+    vsb = ttk.Scrollbar(master, orient="vertical", command=canvas.yview, style="Dark.Vertical.TScrollbar")
+    canvas.configure(yscrollcommand=vsb.set)
+    canvas.pack(side="left", fill="both", expand=True)
+    vsb.pack(side="right", fill="y")
+
+    body = ttk.Frame(canvas, style="Card.TFrame", padding=24)
+    window_id = canvas.create_window((0, 0), window=body, anchor="nw")
+
+    def _ajustar_scrollregion(_e=None):
+        canvas.configure(scrollregion=canvas.bbox("all"))
+    body.bind("<Configure>", _ajustar_scrollregion)
+
+    def _ajustar_largura(e):
+        canvas.itemconfig(window_id, width=e.width)
+    canvas.bind("<Configure>", _ajustar_largura)
+
+    def _rolar(e):
+        canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+    canvas.bind("<Enter>", lambda _e: canvas.bind_all("<MouseWheel>", _rolar))
+    canvas.bind("<Leave>", lambda _e: canvas.unbind_all("<MouseWheel>"))
+
+    return body
+
+
+class AbaFluxoCaixa(ttk.Frame):
+    """Fluxo de caixa livre: VPL, TIR (busca numérica), Payback simples/descontado e ILL."""
+
+    def __init__(self, master):
+        super().__init__(master, style="Card.TFrame")
+        body = _canvas_scrollavel(self)
+
+        ttk.Label(body, text="Fluxo de Caixa — VPL, TIR, Payback e ILL", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(
+            body,
+            text="VPL = Σ CFₜ / (1+i)ᵗ   |   TIR: i tal que VPL = 0   |   ILL = VPL / Investimento — monte "
+                 "o fluxo completo (período 0 = investimento inicial, normalmente negativo; os demais "
+                 "períodos podem ser positivos ou negativos, em qualquer ordem).",
+            style="Muted.TLabel", wraplength=780, justify="left",
+        ).pack(anchor="w", pady=(2, 14))
+
+        linha1 = ttk.Frame(body, style="Card.TFrame")
+        linha1.pack(fill="x")
+        self.taxa = Field(linha1, "Taxa de desconto / TMA (%)", "15", self.calcular)
+        self.taxa.grid(row=0, column=0, padx=(0, 16))
+        self.periodo_unidade = ComboField(
+            linha1, "Período", list(DIAS_POR_PERIODO.keys()), "Anual", self.calcular
+        )
+        self.periodo_unidade.grid(row=0, column=1)
+
+        self.linhas_frame = ttk.Frame(body, style="Card.TFrame")
+        self.linhas_frame.pack(fill="x", pady=(14, 0))
+        self.linhas = []
+
+        tk.Button(
+            body, text="+ Adicionar período", command=self._adicionar_linha,
+            bg=BG_CARD, fg=ACCENT, activebackground=BG_CARD, bd=1, relief="solid",
+            highlightbackground=BORDER, cursor="hand2", padx=12, pady=6, font=FONT_UI_BOLD,
+        ).pack(anchor="w", pady=(6, 0))
+
+        self.resultado = ResultPanel(body, "VPL = Σ CFₜ / (1+i)ᵗ")
+        self.resultado.pack(fill="x", pady=(20, 0))
+
+        for t, v in [(0, "-100000"), (1, "15000"), (2, "25000"), (3, "40000"), (4, "55000"), (5, "60000")]:
+            self._adicionar_linha(t, v)
+
+        self.calcular()
+
+    def _adicionar_linha(self, t=None, v=""):
+        if t is None:
+            ts = [row.get()[0] for row in self.linhas]
+            ts = [x for x in ts if x is not None]
+            t = (max(ts) + 1) if ts else 0
+        row = FluxoRow(self.linhas_frame, t, v, self.calcular, self._remover_linha)
+        row.pack(fill="x", pady=(0, 8))
+        self.linhas.append(row)
+        self.calcular()
+
+    def _remover_linha(self, row):
+        row.destroy()
+        self.linhas.remove(row)
+        self.calcular()
+
+    def calcular(self):
+        i = self.taxa.get()
+        unidade = self.periodo_unidade.get().lower()
+
+        pares = {}
+        for row in self.linhas:
+            t, v = row.get()
+            if t is None or v is None:
+                continue
+            pares[t] = pares.get(t, 0) + v
+        linhas = sorted(pares.items())
+
+        self.resultado.set_formula("VPL = Σ CFₜ / (1+i)ᵗ")
+        if i is None or not linhas:
+            self.resultado.set_rows([
+                ("VPL", "—"), ("TIR", "—"), ("Payback simples", "—"),
+                ("Payback descontado", "—"), ("ILL (VPL / Investimento)", "—"),
+            ])
+            self.resultado.set_status("Informe a taxa e ao menos um período com valor válido.", ok=False)
+            return
+
+        i_frac = i / 100
+        vpl = sum(v / (1 + i_frac) ** t for t, v in linhas)
+
+        t0, v0 = linhas[0]
+        investimento = -v0 if (t0 == 0 and v0 < 0) else None
+        ill = vpl / investimento if investimento else None
+
+        def payback(mapa_valor):
+            acumulado = 0.0
+            prev_t = None
+            for t, v in linhas:
+                valor = mapa_valor(t, v)
+                novo = acumulado + valor
+                if prev_t is None and novo >= 0:
+                    return t
+                if prev_t is not None and acumulado < 0 and novo >= 0:
+                    fracao = (-acumulado / valor) if valor != 0 else 0
+                    return prev_t + (t - prev_t) * fracao
+                acumulado = novo
+                prev_t = t
+            return None
+
+        pb_simples = payback(lambda t, v: v)
+        pb_descontado = payback(lambda t, v: v / (1 + i_frac) ** t)
+
+        def vpl_de(taxa):
+            return sum(v / (1 + taxa) ** t for t, v in linhas)
+
+        lo, hi = -0.999999, 10.0
+        tir = None
+        try:
+            f_lo, f_hi = vpl_de(lo), vpl_de(hi)
+        except OverflowError:
+            f_lo = f_hi = None
+        if f_lo is not None and f_hi is not None and f_lo * f_hi <= 0:
+            for _ in range(200):
+                meio = (lo + hi) / 2
+                try:
+                    f_meio = vpl_de(meio)
+                except OverflowError:
+                    break
+                tir = meio
+                if abs(f_meio) < 1e-7:
+                    break
+                if (f_lo < 0) == (f_meio < 0):
+                    lo, f_lo = meio, f_meio
+                else:
+                    hi, f_hi = meio, f_meio
+
+        rows = [
+            ("VPL", fmt_moeda(vpl)),
+            (f"TIR (ao período \"{unidade}\")", fmt_pct(tir * 100) if tir is not None else "não encontrada nesse intervalo"),
+            ("Payback simples", f"{fmt_num(pb_simples, 2)} períodos" if pb_simples is not None else "não recupera o investimento"),
+            ("Payback descontado", f"{fmt_num(pb_descontado, 2)} períodos" if pb_descontado is not None else "não recupera o investimento"),
+            ("ILL (VPL / Investimento)", fmt_num(ill, 4) if ill is not None else "defina um período 0 negativo (investimento)"),
+        ]
+        self.resultado.set_rows(rows)
+        self.resultado.set_status("Calculado em tempo real ✓", ok=True)
+
+
+class AbaPerpetuidade(ttk.Frame):
+    """Perpetuidade com ou sem crescimento constante (modelo de Gordon)."""
+
+    def __init__(self, master):
+        super().__init__(master, style="Card.TFrame", padding=24)
+        ttk.Label(self, text="Perpetuidade", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(
+            self,
+            text="PV = FC₁ / (i − g) — fluxo de caixa perpétuo, com ou sem crescimento constante "
+                 "(modelo de Gordon). Deixe g = 0 para uma perpetuidade simples. Exige i > g.",
+            style="Muted.TLabel", wraplength=780, justify="left",
+        ).pack(anchor="w", pady=(2, 14))
+
+        linha = ttk.Frame(self, style="Card.TFrame")
+        linha.pack(fill="x")
+        self.fc = Field(linha, "Fluxo de caixa (FC₁, primeiro período)", "2500", self.calcular)
+        self.fc.grid(row=0, column=0, padx=(0, 16))
+        self.taxa = Field(linha, "Taxa de desconto i (%)", "0.8", self.calcular)
+        self.taxa.grid(row=0, column=1, padx=(0, 16))
+        self.g = Field(linha, "Crescimento g (%, opcional)", "0.1", self.calcular)
+        self.g.grid(row=0, column=2)
+
+        self.resultado = ResultPanel(self, "PV = FC₁ / (i − g)")
+        self.resultado.pack(fill="x", pady=(24, 0))
+
+        self.calcular()
+
+    def calcular(self):
+        fc = self.fc.get()
+        i = self.taxa.get()
+        g = self.g.get()
+        self.resultado.set_formula("PV = FC₁ / (i − g)")
+        if fc is None or i is None:
+            self.resultado.set_rows([("Valor Presente (PV)", "—")])
+            self.resultado.set_status("Preencha o fluxo de caixa e a taxa de desconto.", ok=False)
+            return
+        i_frac = i / 100
+        g_frac = (g or 0) / 100
+        if i_frac <= g_frac:
+            self.resultado.set_rows([("Valor Presente (PV)", "—")])
+            self.resultado.set_status("A taxa i deve ser maior que o crescimento g.", ok=False)
+            return
+        pv = fc / (i_frac - g_frac)
+        self.resultado.set_rows([("Valor Presente (PV)", fmt_moeda(pv))])
+        self.resultado.set_status("Calculado em tempo real ✓", ok=True)
+
+
+class AbaCustoCapital(ttk.Frame):
+    """CAPM (custo do capital próprio), custo de terceiros líquido de IR e CMPC/WACC."""
+
+    def __init__(self, master):
+        super().__init__(master, style="Card.TFrame")
+        body = _canvas_scrollavel(self)
+
+        ttk.Label(body, text="Custo de Capital", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(
+            body,
+            text="CAPM: Ks = Rf + β × (Rm − Rf)   |   Custo de terceiros líquido de IR: Ki = Kd × (1 − IR)   |   "
+                 "CMPC = We × Ks + Wd × Ki",
+            style="Muted.TLabel", wraplength=780, justify="left",
+        ).pack(anchor="w", pady=(2, 14))
+
+        ttk.Label(body, text="Capital Próprio (Sócios) — CAPM", style="SubSection.TLabel").pack(
+            anchor="w", pady=(0, 6)
+        )
+        linha1 = ttk.Frame(body, style="Card.TFrame")
+        linha1.pack(fill="x")
+        self.rf = Field(linha1, "Taxa livre de risco (Rf, %)", "6", self.calcular)
+        self.rf.grid(row=0, column=0, padx=(0, 16))
+        self.beta = Field(linha1, "Beta (β)", "1", self.calcular)
+        self.beta.grid(row=0, column=1, padx=(0, 16))
+        self.rm = Field(linha1, "Retorno de mercado (Rm, %)", "12", self.calcular)
+        self.rm.grid(row=0, column=2)
+        self.resultado_ks = ResultPanel(body, "Ks = Rf + β × (Rm − Rf)")
+        self.resultado_ks.pack(fill="x", pady=(10, 20))
+
+        ttk.Label(body, text="Capital de Terceiros (Credores)", style="SubSection.TLabel").pack(
+            anchor="w", pady=(0, 6)
+        )
+        linha2 = ttk.Frame(body, style="Card.TFrame")
+        linha2.pack(fill="x")
+        self.kd = Field(linha2, "Custo bruto da dívida (Kd, %)", "10", self.calcular)
+        self.kd.grid(row=0, column=0, padx=(0, 16))
+        self.ir = Field(linha2, "Alíquota de IR (%)", "34", self.calcular)
+        self.ir.grid(row=0, column=1)
+        self.resultado_ki = ResultPanel(body, "Ki = Kd × (1 − IR)")
+        self.resultado_ki.pack(fill="x", pady=(10, 20))
+
+        ttk.Label(body, text="CMPC (WACC)", style="SubSection.TLabel").pack(anchor="w", pady=(0, 6))
+        linha3 = ttk.Frame(body, style="Card.TFrame")
+        linha3.pack(fill="x")
+        self.we = Field(linha3, "Peso do capital próprio (We, %)", "60", self.calcular)
+        self.we.grid(row=0, column=0, padx=(0, 16))
+        self.ks_manual = Field(linha3, "Ks (%) — em branco usa o CAPM", "", self.calcular)
+        self.ks_manual.grid(row=0, column=1)
+        linha4 = ttk.Frame(body, style="Card.TFrame")
+        linha4.pack(fill="x", pady=(14, 0))
+        self.wd = Field(linha4, "Peso de terceiros (Wd, %)", "40", self.calcular)
+        self.wd.grid(row=0, column=0, padx=(0, 16))
+        self.ki_manual = Field(linha4, "Ki (%) — em branco usa o cálculo acima", "", self.calcular)
+        self.ki_manual.grid(row=0, column=1)
+        self.resultado_cmpc = ResultPanel(body, "CMPC = We × Ks + Wd × Ki")
+        self.resultado_cmpc.pack(fill="x", pady=(10, 0))
+
+        self.calcular()
+
+    def _calc_capm(self):
+        rf, beta, rm = self.rf.get(), self.beta.get(), self.rm.get()
+        self.resultado_ks.set_formula("Ks = Rf + β × (Rm − Rf)")
+        if None in (rf, beta, rm):
+            self.resultado_ks.set_rows([("Custo do capital próprio (Ks)", "—")])
+            self.resultado_ks.set_status("Preencha Rf, β e Rm.", ok=False)
+            return None
+        ks = rf + beta * (rm - rf)
+        self.resultado_ks.set_rows([("Custo do capital próprio (Ks)", fmt_pct(ks))])
+        self.resultado_ks.set_status("Calculado em tempo real ✓", ok=True)
+        return ks
+
+    def _calc_custo_terceiros(self):
+        kd, ir = self.kd.get(), self.ir.get()
+        self.resultado_ki.set_formula("Ki = Kd × (1 − IR)")
+        if None in (kd, ir):
+            self.resultado_ki.set_rows([("Custo de terceiros líq. de IR (Ki)", "—")])
+            self.resultado_ki.set_status("Preencha Kd e a alíquota de IR.", ok=False)
+            return None
+        ki = kd * (1 - ir / 100)
+        self.resultado_ki.set_rows([("Custo de terceiros líq. de IR (Ki)", fmt_pct(ki))])
+        self.resultado_ki.set_status("Calculado em tempo real ✓", ok=True)
+        return ki
+
+    def calcular(self):
+        ks = self._calc_capm()
+        ki = self._calc_custo_terceiros()
+        we, wd = self.we.get(), self.wd.get()
+        ks_manual = self.ks_manual.get()
+        ki_manual = self.ki_manual.get()
+        ks_usado = ks_manual if ks_manual is not None else ks
+        ki_usado = ki_manual if ki_manual is not None else ki
+
+        self.resultado_cmpc.set_formula("CMPC = We × Ks + Wd × Ki")
+        if None in (we, wd, ks_usado, ki_usado):
+            self.resultado_cmpc.set_rows([("CMPC (WACC)", "—")])
+            self.resultado_cmpc.set_status(
+                "Preencha os pesos e garanta Ks/Ki calculados ou informados.", ok=False
+            )
+            return
+        cmpc = (we / 100) * ks_usado + (wd / 100) * ki_usado
+        rows = [("CMPC (WACC)", fmt_pct(cmpc))]
+        if abs(we + wd - 100) > 0.5:
+            rows.append(("Atenção", f"We + Wd = {fmt_num(we + wd, 1)}% (deveria somar 100%)"))
+        self.resultado_cmpc.set_rows(rows)
+        self.resultado_cmpc.set_status("Calculado em tempo real ✓", ok=True)
+
+
+class AbaCapitalGiro(ttk.Frame):
+    """Necessidade de Capital de Giro (NCG) e prazos médios (PME, PMR, PMP)."""
+
+    def __init__(self, master):
+        super().__init__(master, style="Card.TFrame", padding=24)
+        ttk.Label(self, text="Capital de Giro (NCG)", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(
+            self,
+            text="NCG = Estoques + Duplicatas a Receber − Fornecedores   |   "
+                 "PME = (Estoques / CMV) × 360   |   PMR = (Duplicatas a Receber / Vendas a Prazo) × 360   |   "
+                 "PMP = (Fornecedores / Desembolso Anual) × 360   |   Ciclo Operacional = PME + PMR   |   "
+                 "Ciclo Financeiro = Ciclo Operacional − PMP (base: ano comercial de 360 dias)",
+            style="Muted.TLabel", wraplength=780, justify="left",
+        ).pack(anchor="w", pady=(2, 14))
+
+        linha1 = ttk.Frame(self, style="Card.TFrame")
+        linha1.pack(fill="x")
+        self.estoques = Field(linha1, "Estoques", "600000", self.calcular)
+        self.estoques.grid(row=0, column=0, padx=(0, 16))
+        self.duplicatas = Field(linha1, "Duplicatas a Receber", "700000", self.calcular)
+        self.duplicatas.grid(row=0, column=1, padx=(0, 16))
+        self.fornecedores = Field(linha1, "Fornecedores (Contas a Pagar)", "400000", self.calcular)
+        self.fornecedores.grid(row=0, column=2)
+
+        linha2 = ttk.Frame(self, style="Card.TFrame")
+        linha2.pack(fill="x", pady=(14, 0))
+        self.vendas = Field(linha2, "Vendas a prazo (no período)", "3000000", self.calcular)
+        self.vendas.grid(row=0, column=0, padx=(0, 16))
+        self.cmv = Field(linha2, "CMV (no período)", "1800000", self.calcular)
+        self.cmv.grid(row=0, column=1, padx=(0, 16))
+        self.desembolso = Field(linha2, "Desembolso anual", "12000000", self.calcular)
+        self.desembolso.grid(row=0, column=2)
+
+        self.resultado = ResultPanel(self, "NCG = Estoques + Duplicatas a Receber − Fornecedores")
+        self.resultado.pack(fill="x", pady=(24, 0))
+
+        self.calcular()
+
+    def calcular(self):
+        estoques = self.estoques.get()
+        duplicatas = self.duplicatas.get()
+        fornecedores = self.fornecedores.get()
+        vendas = self.vendas.get()
+        cmv = self.cmv.get()
+        desembolso = self.desembolso.get()
+
+        self.resultado.set_formula("NCG = Estoques + Duplicatas a Receber − Fornecedores")
+        if None in (estoques, duplicatas, fornecedores):
+            self.resultado.set_rows([("NCG (Necessidade de Capital de Giro)", "—")])
+            self.resultado.set_status("Preencha estoques, duplicatas a receber e fornecedores.", ok=False)
+            return
+
+        ncg = estoques + duplicatas - fornecedores
+        rows = [("NCG (Necessidade de Capital de Giro)", fmt_moeda(ncg))]
+
+        pme = pmr = pmp = None
+        if cmv:
+            pme = estoques / cmv * 360
+            rows.append(("PME (Prazo Médio de Estocagem)", f"{fmt_num(pme, 1)} dias"))
+        if vendas:
+            pmr = duplicatas / vendas * 360
+            rows.append(("PMR (Prazo Médio de Recebimento)", f"{fmt_num(pmr, 1)} dias"))
+        if desembolso:
+            pmp = fornecedores / desembolso * 360
+            rows.append(("PMP (Prazo Médio de Pagamento)", f"{fmt_num(pmp, 1)} dias"))
+        if pme is not None and pmr is not None:
+            ciclo_op = pme + pmr
+            rows.append(("Ciclo Operacional (PME + PMR)", f"{fmt_num(ciclo_op, 1)} dias"))
+            if pmp is not None:
+                rows.append(("Ciclo Financeiro (Ciclo Op. − PMP)", f"{fmt_num(ciclo_op - pmp, 1)} dias"))
+
+        self.resultado.set_rows(rows)
+        self.resultado.set_status("Calculado em tempo real ✓", ok=True)
+
+
 class AbaEquivalencia(ttk.Frame):
     """Equivalência de taxas (regime composto), com foco em % ao mês.
 
@@ -1098,6 +1519,10 @@ class App(tk.Tk):
             "simples": AbaJurosSimples(content),
             "compostos": AbaJurosCompostos(content),
             "price": AbaPrice(content),
+            "fluxo": AbaFluxoCaixa(content),
+            "perpetuidade": AbaPerpetuidade(content),
+            "capital": AbaCustoCapital(content),
+            "giro": AbaCapitalGiro(content),
             "equivalencia": AbaEquivalencia(content),
         }
         for frame in self.frames.values():
@@ -1108,6 +1533,10 @@ class App(tk.Tk):
             ("simples", "📈", "Juros Simples"),
             ("compostos", "📊", "Juros Compostos"),
             ("price", "🏦", "Sistema Price"),
+            ("fluxo", "💵", "VPL/TIR/Payback"),
+            ("perpetuidade", "♾️", "Perpetuidade"),
+            ("capital", "🏛️", "Custo de Capital"),
+            ("giro", "🔁", "Capital de Giro"),
             ("equivalencia", "🔄", "Equivalência de Taxas"),
         ]
         for key, icon, texto in botoes:

@@ -14,6 +14,15 @@ FGV). Cobre:
   Postecipadas (END) ou Antecipadas (BEGIN); carência com capitalização de
   juros ou pagamento de juros à parte; taxa em periodicidade diferente da
   parcela; tabela de amortização completa.
+- **Fluxo de Caixa (VPL / TIR / Payback / ILL)** — fluxo de caixa livre
+  (períodos e valores editáveis), Valor Presente Líquido, Taxa Interna de
+  Retorno (busca numérica), Payback simples e descontado, Índice de
+  Lucratividade Líquida.
+- **Perpetuidade** — com ou sem crescimento constante (modelo de Gordon).
+- **Custo de Capital** — CAPM (custo do capital próprio), custo de capital de
+  terceiros líquido de IR, e CMPC/WACC.
+- **Capital de Giro (NCG)** — Necessidade de Capital de Giro, PME, PMR, PMP,
+  Ciclo Operacional e Ciclo Financeiro.
 - **Equivalência de Taxas** — conversão entre periodicidades (diária, mensal,
   bimestral, trimestral, quadrimestral, semestral, anual), convenção
   comercial 30/360.
