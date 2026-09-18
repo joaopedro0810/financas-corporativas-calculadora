@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calculadora Financeira · Finanças Corporativas</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b1220;
+    --bg-sidebar: #0a0f1c;
+    --bg-card: #111a2e;
+    --bg-entry: #0e1626;
+    --border: #1e2a44;
+    --accent: #22d3ee;
+    --accent-dim: #0e7490;
+    --text: #e2e8f0;
+    --text-muted: #7d8aa3;
+    --error: #f87171;
+    --ok: #34d399;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    font-size: 15px;
+    overflow-x: hidden;
+  }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header .title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+  header .subtitle {
+    color: var(--text-muted);
+    font-size: .82rem;
+    white-space: nowrap;
+  }
+
+  .layout {
+    display: flex;
+    min-height: calc(100vh - 60px);
+  }
+
+  nav.sidebar {
+    width: 220px;
+    flex: none;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 14px 8px;
+    gap: 2px;
+  }
+  nav.sidebar button.navbtn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 12px;
+    font-size: .95rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  nav.sidebar button.navbtn:hover { background: var(--bg-card); color: var(--text); }
+  nav.sidebar button.navbtn.active { background: var(--bg-card); color: var(--accent); font-weight: 700; }
+  nav.sidebar .hint {
+    margin-top: auto;
+    color: var(--text-muted);
+    font-size: .72rem;
+    padding: 12px;
+    line-height: 1.4;
+  }
+
+  main.content {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 22px;
+  }
+
+  .panel { max-width: 900px; }
+  .panel h2 { margin: 0 0 6px 0; font-size: 1.35rem; }
+  .panel .desc {
+    color: var(--text-muted);
+    font-size: .86rem;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .toggle-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+    min-width: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .toggle-group button {
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    padding: 9px 14px;
+    font-size: .85rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .toggle-group button.active { background: var(--accent); color: #04222b; }
+  .toggle-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .toggle-row > .label { color: var(--text-muted); font-size: .85rem; }
+
+  .fields-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1 1 160px; }
+  .field label { color: var(--text-muted); font-size: .8rem; }
+  .field input, .field select {
+    background: var(--bg-entry);
+    color: var(--accent);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 10px;
+    font-family: "Consolas", monospace;
+    font-size: .95rem;
+    width: 100%;
+  }
+  .field select { color: var(--accent); }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  .field input.is-output {
+    background: var(--bg-card);
+    color: var(--text-muted);
+    border-color: var(--border);
+  }
+
+  .result-panel {
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 6px;
+  }
+  .result-formula { color: var(--accent); font-family: "Consolas", monospace; font-size: .9rem; margin-bottom: 10px; }
+  .result-body { display: grid; grid-template-columns: 1fr auto; row-gap: 8px; column-gap: 20px; }
+  .result-label { color: var(--text-muted); }
+  .result-value { font-family: "Consolas", monospace; font-weight: 700; font-size: 1.3rem; text-align: right; }
+  .result-status { margin-top: 10px; font-size: .82rem; }
+
+  .subsection { font-weight: 700; font-size: 1.02rem; margin: 22px 0 8px 0; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table.amort { border-collapse: collapse; width: 100%; min-width: 480px; font-family: "Consolas", monospace; font-size: .85rem; }
+  table.amort thead th {
+    background: var(--bg-card); color: var(--accent); text-align: right;
+    padding: 8px 10px; position: sticky; top: 0; border-bottom: 1px solid var(--border);
+  }
+  table.amort thead th:first-child { text-align: center; }
+  table.amort tbody td { padding: 6px 10px; text-align: right; background: var(--bg-entry); border-bottom: 1px solid var(--border); }
+  table.amort tbody td:first-child { text-align: center; color: var(--text-muted); }
+  .table-scroll { max-height: 320px; overflow-y: auto; }
+  .table-info { color: var(--text-muted); font-size: .82rem; margin-top: 8px; }
+
+  /* --- Mobile: sidebar vira barra inferior fixa --- */
+  @media (max-width: 860px) {
+    .layout { flex-direction: column; }
+    nav.sidebar {
+      order: 2;
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      width: auto;
+      flex-direction: row;
+      justify-content: space-around;
+      border-right: none;
+      border-top: 1px solid var(--border);
+      padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)) 4px;
+      z-index: 20;
+    }
+    nav.sidebar .hint { display: none; }
+    nav.sidebar button.navbtn {
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 6px 4px;
+      font-size: .66rem;
+      border-radius: 8px;
+      flex: 1;
+    }
+    nav.sidebar button.navbtn .icon { font-size: 1.2rem; }
+    main.content {
+      order: 1;
+      padding: 16px 14px 88px 14px;
+    }
+    header { padding: 12px 14px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
+    header .subtitle { display: none; }
+    .field { min-width: 130px; }
+    .result-value { font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">⚡ CALCULADORA FINANCEIRA</div>
+  <div class="subtitle">MBA Gestão Empresarial · FGV</div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="nav">
+    <button class="navbtn" data-tab="simples"><span class="icon">📈</span><span>Juros Simples</span></button>
+    <button class="navbtn" data-tab="compostos"><span class="icon">📊</span><span>Juros Compostos</span></button>
+    <button class="navbtn" data-tab="price"><span class="icon">🏦</span><span>Sistema Price</span></button>
+    <button class="navbtn" data-tab="equivalencia"><span class="icon">🔄</span><span>Equivalência</span></button>
+    <div class="hint">Todos os campos recalculam ao vivo.</div>
+  </nav>
+
+  <main class="content">
+
+    <!-- ======================= JUROS SIMPLES ======================= -->
+    <section class="panel" id="tab-simples">
+      <h2>Juros Simples</h2>
+      <div class="desc">
+        J = C · i · n &nbsp;|&nbsp; M = C + J &nbsp;|&nbsp; C = M / (1 + i·n) &nbsp;|&nbsp; n = (M/C − 1) / i<br>
+        Taxa e prazo em escalas diferentes? O prazo é convertido automaticamente (proporção linear).
+        O campo calculado fica travado e se atualiza sozinho.
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-group" id="s-modo">
+          <button data-value="montante" class="active">Calcular Montante</button>
+          <button data-value="capital">Calcular Capital Inicial</button>
+          <button data-value="prazo">Calcular Prazo</button>
+        </div>
+      </div>
+
+      <div class="fields-row">
+        <div class="field"><label>Capital inicial (C)</label><input id="s-capital" value="1000"></div>
+        <div class="field"><label>Montante final (M)</label><input id="s-montante" value="1240"></div>
+        <div class="field"><label>Taxa i (%)</label><input id="s-taxa" value="2"></div>
+      </div>
+      <div class="fields-row">
+        <div class="field">
+          <label>Período da taxa</label>
+          <select id="s-periodoTaxa">
+            <option>Diária</option><option>Mensal</option><option>Bimestral</option>
+            <option>Trimestral</option><option>Quadrimestral</option><option>Semestral</option><option>Anual</option>
+          </select>
+        </div>
+        <div class="field"><label>Prazo (n)</label><input id="s-periodos" value="12"></div>
+        <div class="field">
+          <label>Período do prazo</label>
+          <select id="s-periodoPrazo">
+            <option>Diária</option><option>Mensal</option><option>Bimestral</option>
+            <option>Trimestral</option><option>Quadrimestral</option><option>Semestral</option><option>Anual</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="result-panel" id="s-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
+    </section>
+
+    <!-- ======================= JUROS COMPOSTOS ======================= -->
+    <section class="panel" id="tab-compostos" hidden>
+      <h2>Juros Compostos</h2>
+      <div class="desc">
+        M = C · (1 + i)ⁿ &nbsp;|&nbsp; J = M − C &nbsp;|&nbsp; C = M / (1 + i)ⁿ &nbsp;|&nbsp; n = ln(M/C) / ln(1 + i)<br>
+        Taxa e prazo em escalas diferentes? A conversão usa expoente — nunca multiplique/divida uma taxa
+        efetiva diretamente. O campo calculado fica travado e se atualiza sozinho.
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-group" id="c-modo">
+          <button data-value="montante" class="active">Calcular Montante</button>
+          <button data-value="capital">Calcular Capital Inicial</button>
+          <button data-value="prazo">Calcular Prazo</button>
+        </div>
+      </div>
+
+      <div class="fields-row">
+        <div class="field"><label>Capital inicial (C)</label><input id="c-capital" value="10000"></div>
+        <div class="field"><label>Montante final (M)</label><input id="c-montante" value="11292.43"></div>
+        <div class="field"><label>Taxa i (%)</label><input id="c-taxa" value="20"></div>
+      </div>
+      <div class="fields-row">
+        <div class="field">
+          <label>Período da taxa</label>
+          <select id="c-periodoTaxa">
+            <option>Diária</option><option>Mensal</option><option>Bimestral</option>
+            <option>Trimestral</option><option>Quadrimestral</option><option>Semestral</option><option selected>Anual</option>
+          </select>
+        </div>
+        <div class="field"><label>Prazo (n)</label><input id="c-periodos" value="8"></div>
+        <div class="field">
+          <label>Período do prazo</label>
+          <select id="c-periodoPrazo">
+            <option>Diária</option><option selected>Mensal</option><option>Bimestral</option>
+            <option>Trimestral</option><option>Quadrimestral</option><option>Semestral</option><option>Anual</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="result-panel" id="c-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
+    </section>
+
+    <!-- ======================= SISTEMA PRICE ======================= -->
+    <section class="panel" id="tab-price" hidden>
+      <h2>Sistema Price</h2>
+      <div class="desc">
+        PMT = PV · i / (1 − (1+i)⁻ⁿ) &nbsp;|&nbsp; PV = PMT · (1 − (1+i)⁻ⁿ) / i — parcelas constantes.
+        Se a taxa estiver numa escala diferente da parcela (ex.: taxa anual, parcelas mensais), a
+        conversão para a taxa equivalente da parcela é automática. Carência &gt; 0 adia o início das
+        parcelas — os juros do período podem capitalizar (aumentam o saldo) ou ser pagos à parte
+        (saldo não muda).
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-group" id="p-modo">
+          <button data-value="pmt" class="active">Calcular Prestação</button>
+          <button data-value="pv">Calcular Valor Presente</button>
+          <button data-value="prazo">Calcular Prazo (n)</button>
+          <button data-value="taxa">Calcular Taxa (i)</button>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <span class="label">Parcelas:</span>
+        <div class="toggle-group" id="p-convencao">
+          <button data-value="postecipada" class="active">Postecipada (fim · END)</button>
+          <button data-value="antecipada">Antecipada (início · BEGIN)</button>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <span class="label">Carência:</span>
+        <div class="toggle-group" id="p-carenciaTipo">
+          <button data-value="capitaliza" class="active">Capitaliza os juros</button>
+          <button data-value="paga_juros">Paga só os juros no período</button>
+        </div>
+      </div>
+
+      <div class="fields-row">
+        <div class="field"><label>Valor Presente (PV)</label><input id="p-pv" value="10000"></div>
+        <div class="field"><label>Prestação (PMT)</label><input id="p-pmt" value="1101.03"></div>
+        <div class="field"><label>Taxa i (%)</label><input id="p-taxa" value="2"></div>
+        <div class="field">
+          <label>Período da taxa</label>
+          <select id="p-periodoTaxa">
+            <option>Diária</option><option selected>Mensal</option><option>Bimestral</option>
+            <option>Trimestral</option><option>Quadrimestral</option><option>Semestral</option><option>Anual</option>
+          </select>
+        </div>
+      </div>
+      <div class="fields-row">
+        <div class="field"><label>Prazo (n)</label><input id="p-periodos" value="10"></div>
+        <div class="field">
+          <label>Período das parcelas</label>
+          <select id="p-periodoParcela">
+            <option>Diária</option><option selected>Mensal</option><option>Bimestral</option>
+            <option>Trimestral</option><option>Quadrimestral</option><option>Semestral</option><option>Anual</option>
+          </select>
+        </div>
+        <div class="field"><label>Carência (nº de parcelas sem amortizar)</label><input id="p-carencia" value="0"></div>
+      </div>
+
+      <div class="result-panel" id="p-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
+
+      <div class="subsection">Tabela de amortização</div>
+      <div class="table-wrap table-scroll">
+        <table class="amort">
+          <thead>
+            <tr><th>Nº</th><th>Prestação</th><th>Juros</th><th>Amortização</th><th>Saldo Devedor</th></tr>
+          </thead>
+          <tbody id="p-tabela"></tbody>
+        </table>
+      </div>
+      <div class="table-info" id="p-tabelaInfo"></div>
+    </section>
+
+    <!-- ======================= EQUIVALÊNCIA DE TAXAS ======================= -->
+    <section class="panel" id="tab-equivalencia" hidden>
+      <h2>Equivalência de Taxas</h2>
+      <div class="desc">(1 + i₁)^(1/t₁) = (1 + i₂)^(1/t₂) — convenção comercial 30/360</div>
+
+      <div class="fields-row">
+        <div class="field"><label>Taxa conhecida (%)</label><input id="e-taxa" value="12"></div>
+        <div class="field">
+          <label>Período da taxa</label>
+          <select id="e-periodoOrigem">
+            <option>Diária</option><option>Mensal</option><option>Bimestral</option>
+            <option>Trimestral</option><option>Quadrimestral</option><option>Semestral</option><option selected>Anual</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Período desejado</label>
+          <select id="e-periodoDestino">
+            <option>Diária</option><option selected>Mensal</option><option>Bimestral</option>
+            <option>Trimestral</option><option>Quadrimestral</option><option>Semestral</option><option>Anual</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="result-panel" id="e-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------
+// Utilidades gerais
+// ---------------------------------------------------------------------
+const DIAS_POR_PERIODO = {
+  "Diária": 1, "Mensal": 30, "Bimestral": 60, "Trimestral": 90,
+  "Quadrimestral": 120, "Semestral": 180, "Anual": 360,
+};
+
+function parseNum(str) {
+  if (str == null) return null;
+  const t = String(str).trim().replace("%", "").replace(",", ".");
+  if (t === "") return null;
+  const v = Number(t);
+  return Number.isFinite(v) ? v : null;
+}
+
+function fmtMoeda(v) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+function fmtNum(v, casas = 4) {
+  return v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+}
+function fmtPct(v, casas = 4) {
+  return fmtNum(v, casas) + "%";
+}
+
+function prazoEfetivo(n, periodoTaxa, periodoPrazo) {
+  return (n * DIAS_POR_PERIODO[periodoPrazo]) / DIAS_POR_PERIODO[periodoTaxa];
+}
+
+function linhaConversao(nEfetivo, periodoTaxa, periodoPrazo) {
+  if (periodoTaxa === periodoPrazo) return [];
+  return [[`Prazo em nº de "${periodoTaxa.toLowerCase()}"`, fmtNum(nEfetivo)]];
+}
+
+function taxaEquivalente(iFrac, periodoOrigem, periodoDestino) {
+  return Math.pow(1 + iFrac, DIAS_POR_PERIODO[periodoDestino] / DIAS_POR_PERIODO[periodoOrigem]) - 1;
+}
+
+function val(id) { return document.getElementById(id).value; }
+function setVal(id, v) { document.getElementById(id).value = v; }
+function setReadonly(id, ro) {
+  const el = document.getElementById(id);
+  el.readOnly = ro;
+  el.classList.toggle("is-output", ro);
+}
+
+function setFormula(panelId, texto) {
+  document.querySelector(`#${panelId} .result-formula`).textContent = texto;
+}
+function setRows(panelId, rows) {
+  const body = document.querySelector(`#${panelId} .result-body`);
+  body.innerHTML = "";
+  for (const [label, value] of rows) {
+    const l = document.createElement("div"); l.className = "result-label"; l.textContent = label;
+    const v = document.createElement("div"); v.className = "result-value"; v.textContent = value;
+    body.appendChild(l); body.appendChild(v);
+  }
+}
+function setStatus(panelId, texto, ok = true) {
+  const el = document.querySelector(`#${panelId} .result-status`);
+  el.textContent = texto;
+  el.style.color = ok ? "var(--ok)" : "var(--error)";
+}
+
+// Grupo de botões tipo "pílula" (toggle exclusivo)
+function setupToggle(groupEl, onChange) {
+  groupEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn || !groupEl.contains(btn)) return;
+    for (const b of groupEl.querySelectorAll("button")) b.classList.remove("active");
+    btn.classList.add("active");
+    onChange(btn.dataset.value);
+  });
+}
+function getToggle(groupEl) {
+  return groupEl.querySelector("button.active").dataset.value;
+}
+
+// ---------------------------------------------------------------------
+// Navegação entre abas
+// ---------------------------------------------------------------------
+const navEl = document.getElementById("nav");
+navEl.addEventListener("click", (e) => {
+  const btn = e.target.closest("button.navbtn");
+  if (!btn) return;
+  mostrarAba(btn.dataset.tab);
+});
+function mostrarAba(nome) {
+  for (const btn of navEl.querySelectorAll("button.navbtn")) {
+    btn.classList.toggle("active", btn.dataset.tab === nome);
+  }
+  for (const sec of document.querySelectorAll("main.content > section")) {
+    sec.hidden = sec.id !== `tab-${nome}`;
+  }
+}
+
+// ---------------------------------------------------------------------
+// Juros Simples
+// ---------------------------------------------------------------------
+const sModoEl = document.getElementById("s-modo");
+
+function sTrocarModo() {
+  const modo = getToggle(sModoEl);
+  setReadonly("s-capital", modo === "capital");
+  setReadonly("s-montante", modo === "montante");
+  setReadonly("s-periodos", modo === "prazo");
+  calcSimples();
+}
+setupToggle(sModoEl, sTrocarModo);
+
+function calcSimples() {
+  const modo = getToggle(sModoEl);
+  const i = parseNum(val("s-taxa"));
+  const periodoTaxa = val("s-periodoTaxa");
+  const periodoPrazo = val("s-periodoPrazo");
+
+  if (modo === "montante") {
+    const c = parseNum(val("s-capital"));
+    const n = parseNum(val("s-periodos"));
+    setFormula("s-result", "J = C × i × n");
+    if (c == null || i == null || n == null) {
+      setVal("s-montante", "");
+      setRows("s-result", [["Juros (J)", "—"], ["Montante (M)", "—"]]);
+      setStatus("s-result", "Preencha todos os campos com números válidos.", false);
+      return;
+    }
+    const nEf = prazoEfetivo(n, periodoTaxa, periodoPrazo);
+    const iFrac = i / 100;
+    const juros = c * iFrac * nEf;
+    const montante = c + juros;
+    setVal("s-montante", montante.toFixed(2));
+    let rows = [["Juros (J)", fmtMoeda(juros)], ["Montante (M)", fmtMoeda(montante)]];
+    rows = rows.concat(linhaConversao(nEf, periodoTaxa, periodoPrazo));
+    setRows("s-result", rows);
+    setStatus("s-result", "Calculado em tempo real ✓", true);
+
+  } else if (modo === "capital") {
+    const m = parseNum(val("s-montante"));
+    const n = parseNum(val("s-periodos"));
+    setFormula("s-result", "C = M / (1 + i × n)");
+    if (m == null || i == null || n == null) {
+      setVal("s-capital", "");
+      setRows("s-result", [["Capital inicial (C)", "—"], ["Juros (J)", "—"]]);
+      setStatus("s-result", "Preencha todos os campos com números válidos.", false);
+      return;
+    }
+    const nEf = prazoEfetivo(n, periodoTaxa, periodoPrazo);
+    const iFrac = i / 100;
+    const denom = 1 + iFrac * nEf;
+    if (denom === 0) {
+      setVal("s-capital", "");
+      setRows("s-result", [["Capital inicial (C)", "—"], ["Juros (J)", "—"]]);
+      setStatus("s-result", "Combinação de taxa e prazo torna o denominador zero.", false);
+      return;
+    }
+    const capital = m / denom;
+    const juros = m - capital;
+    setVal("s-capital", capital.toFixed(2));
+    let rows = [["Capital inicial (C)", fmtMoeda(capital)], ["Juros (J)", fmtMoeda(juros)]];
+    rows = rows.concat(linhaConversao(nEf, periodoTaxa, periodoPrazo));
+    setRows("s-result", rows);
+    setStatus("s-result", "Calculado em tempo real ✓", true);
+
+  } else { // prazo
+    const c = parseNum(val("s-capital"));
+    const m = parseNum(val("s-montante"));
+    setFormula("s-result", "n = (M/C − 1) / i");
+    if (c == null || m == null || i == null) {
+      setVal("s-periodos", "");
+      setRows("s-result", [["Prazo (n)", "—"], ["Juros (J)", "—"]]);
+      setStatus("s-result", "Preencha todos os campos com números válidos.", false);
+      return;
+    }
+    const iFrac = i / 100;
+    if (c === 0 || iFrac === 0) {
+      setVal("s-periodos", "");
+      setRows("s-result", [["Prazo (n)", "—"], ["Juros (J)", "—"]]);
+      setStatus("s-result", "Capital e taxa não podem ser zero para calcular o prazo.", false);
+      return;
+    }
+    const nEf = (m / c - 1) / iFrac;
+    const nNoPrazo = prazoEfetivo(nEf, periodoPrazo, periodoTaxa);
+    const juros = m - c;
+    setVal("s-periodos", nNoPrazo.toFixed(4));
+    setRows("s-result", [
+      [`Prazo (n, em "${periodoPrazo.toLowerCase()}")`, fmtNum(nNoPrazo)],
+      ["Juros (J)", fmtMoeda(juros)],
+    ]);
+    setStatus("s-result", "Calculado em tempo real ✓", true);
+  }
+}
+
+document.getElementById("tab-simples").addEventListener("input", calcSimples);
+document.getElementById("tab-simples").addEventListener("change", calcSimples);
+
+// ---------------------------------------------------------------------
+// Juros Compostos
+// ---------------------------------------------------------------------
+const cModoEl = document.getElementById("c-modo");
+
+function cTrocarModo() {
+  const modo = getToggle(cModoEl);
+  setReadonly("c-capital", modo === "capital");
+  setReadonly("c-montante", modo === "montante");
+  setReadonly("c-periodos", modo === "prazo");
+  calcCompostos();
+}
+setupToggle(cModoEl, cTrocarModo);
+
+function calcCompostos() {
+  const modo = getToggle(cModoEl);
+  const i = parseNum(val("c-taxa"));
+  const periodoTaxa = val("c-periodoTaxa");
+  const periodoPrazo = val("c-periodoPrazo");
+
+  if (modo === "montante") {
+    const c = parseNum(val("c-capital"));
+    const n = parseNum(val("c-periodos"));
+    setFormula("c-result", "M = C × (1 + i)ⁿ");
+    if (c == null || i == null || n == null) {
+      setVal("c-montante", "");
+      setRows("c-result", [["Juros (J)", "—"], ["Montante (M)", "—"]]);
+      setStatus("c-result", "Preencha todos os campos com números válidos.", false);
+      return;
+    }
+    const nEf = prazoEfetivo(n, periodoTaxa, periodoPrazo);
+    const iFrac = i / 100;
+    const montante = c * Math.pow(1 + iFrac, nEf);
+    if (!Number.isFinite(montante)) {
+      setVal("c-montante", "");
+      setRows("c-result", [["Juros (J)", "—"], ["Montante (M)", "—"]]);
+      setStatus("c-result", "Não é possível calcular com esses valores.", false);
+      return;
+    }
+    const juros = montante - c;
+    setVal("c-montante", montante.toFixed(2));
+    let rows = [["Juros (J)", fmtMoeda(juros)], ["Montante (M)", fmtMoeda(montante)]];
+    rows = rows.concat(linhaConversao(nEf, periodoTaxa, periodoPrazo));
+    setRows("c-result", rows);
+    setStatus("c-result", "Calculado em tempo real ✓", true);
+
+  } else if (modo === "capital") {
+    const m = parseNum(val("c-montante"));
+    const n = parseNum(val("c-periodos"));
+    setFormula("c-result", "C = M / (1 + i)ⁿ");
+    if (m == null || i == null || n == null) {
+      setVal("c-capital", "");
+      setRows("c-result", [["Capital inicial (C)", "—"], ["Juros (J)", "—"]]);
+      setStatus("c-result", "Preencha todos os campos com números válidos.", false);
+      return;
+    }
+    const nEf = prazoEfetivo(n, periodoTaxa, periodoPrazo);
+    const iFrac = i / 100;
+    const fator = Math.pow(1 + iFrac, nEf);
+    const capital = m / fator;
+    if (!Number.isFinite(capital)) {
+      setVal("c-capital", "");
+      setRows("c-result", [["Capital inicial (C)", "—"], ["Juros (J)", "—"]]);
+      setStatus("c-result", "Não é possível calcular com esses valores.", false);
+      return;
+    }
+    const juros = m - capital;
+    setVal("c-capital", capital.toFixed(2));
+    let rows = [["Capital inicial (C)", fmtMoeda(capital)], ["Juros (J)", fmtMoeda(juros)]];
+    rows = rows.concat(linhaConversao(nEf, periodoTaxa, periodoPrazo));
+    setRows("c-result", rows);
+    setStatus("c-result", "Calculado em tempo real ✓", true);
+
+  } else { // prazo
+    const c = parseNum(val("c-capital"));
+    const m = parseNum(val("c-montante"));
+    setFormula("c-result", "n = ln(M/C) / ln(1 + i)");
+    if (c == null || m == null || i == null) {
+      setVal("c-periodos", "");
+      setRows("c-result", [["Prazo (n)", "—"], ["Juros (J)", "—"]]);
+      setStatus("c-result", "Preencha todos os campos com números válidos.", false);
+      return;
+    }
+    const iFrac = i / 100;
+    if (c <= 0 || m <= 0 || iFrac <= -1) {
+      setVal("c-periodos", "");
+      setRows("c-result", [["Prazo (n)", "—"], ["Juros (J)", "—"]]);
+      setStatus("c-result", "Capital, montante e (1 + taxa) precisam ser positivos.", false);
+      return;
+    }
+    const denomLn = Math.log(1 + iFrac);
+    if (denomLn === 0) {
+      setVal("c-periodos", "");
+      setRows("c-result", [["Prazo (n)", "—"], ["Juros (J)", "—"]]);
+      setStatus("c-result", "Não é possível calcular o prazo com esses valores (taxa 0%?).", false);
+      return;
+    }
+    const nEf = Math.log(m / c) / denomLn;
+    const nNoPrazo = prazoEfetivo(nEf, periodoPrazo, periodoTaxa);
+    const juros = m - c;
+    setVal("c-periodos", nNoPrazo.toFixed(4));
+    setRows("c-result", [
+      [`Prazo (n, em "${periodoPrazo.toLowerCase()}")`, fmtNum(nNoPrazo)],
+      ["Juros (J)", fmtMoeda(juros)],
+    ]);
+    setStatus("c-result", "Calculado em tempo real ✓", true);
+  }
+}
+
+document.getElementById("tab-compostos").addEventListener("input", calcCompostos);
+document.getElementById("tab-compostos").addEventListener("change", calcCompostos);
+
+// ---------------------------------------------------------------------
+// Sistema Price
+// ---------------------------------------------------------------------
+const pModoEl = document.getElementById("p-modo");
+const pConvEl = document.getElementById("p-convencao");
+const pCarTipoEl = document.getElementById("p-carenciaTipo");
+
+function pTrocarModo() {
+  const modo = getToggle(pModoEl);
+  setReadonly("p-pv", modo === "pv");
+  setReadonly("p-pmt", modo === "pmt");
+  setReadonly("p-taxa", modo === "taxa");
+  setReadonly("p-periodos", modo === "prazo");
+  calcPrice();
+}
+setupToggle(pModoEl, pTrocarModo);
+setupToggle(pConvEl, calcPrice);
+setupToggle(pCarTipoEl, calcPrice);
+
+function limparTabelaPrice(msg) {
+  document.getElementById("p-tabela").innerHTML = "";
+  document.getElementById("p-tabelaInfo").textContent = msg;
+}
+
+function atualizarTabelaPrice(pvOriginal, pmt, iFrac, n, antecipada, carencia, tipoCarencia) {
+  if (n == null || n <= 0 || Math.abs(n - Math.round(n)) > 1e-6) {
+    limparTabelaPrice("A tabela só é exibida quando o prazo é um número inteiro de parcelas.");
+    return;
+  }
+  const nInt = Math.round(n);
+  const cInt = Math.round(carencia);
+  if (nInt + cInt > 600) {
+    limparTabelaPrice("Prazo grande demais para exibir a tabela (máximo de 600 linhas).");
+    return;
+  }
+  const linhas = [];
+  let saldo = pvOriginal;
+
+  for (let k = 1; k <= cInt; k++) {
+    const juros = saldo * iFrac;
+    if (tipoCarencia === "capitaliza") {
+      saldo += juros;
+      linhas.push([`C${k}`, "—", fmtMoeda(juros), "—", fmtMoeda(saldo)]);
+    } else {
+      linhas.push([`C${k}`, fmtMoeda(juros), fmtMoeda(juros), fmtMoeda(0), fmtMoeda(saldo)]);
+    }
+  }
+
+  for (let k = 1; k <= nInt; k++) {
+    const juros = (antecipada && k === 1) ? 0 : saldo * iFrac;
+    const amort = pmt - juros;
+    saldo -= amort;
+    linhas.push([cInt + k, fmtMoeda(pmt), fmtMoeda(juros), fmtMoeda(amort), fmtMoeda(saldo)]);
+  }
+
+  const tbody = document.getElementById("p-tabela");
+  tbody.innerHTML = "";
+  for (const linha of linhas) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = linha.map((v) => `<td>${v}</td>`).join("");
+    tbody.appendChild(tr);
+  }
+  const carenciaInfo = cInt > 0 ? `${cInt} período(s) de carência + ` : "";
+  document.getElementById("p-tabelaInfo").textContent =
+    `${carenciaInfo}${nInt} parcela(s) de ${fmtMoeda(pmt)}  ·  saldo devedor final: ${fmtMoeda(saldo)}`;
+}
+
+function calcPrice() {
+  const modo = getToggle(pModoEl);
+  const antecipada = getToggle(pConvEl) === "antecipada";
+  const tipoCar = getToggle(pCarTipoEl);
+  const sufixo = antecipada ? "  ×  (1+i)  [antecipada]" : "";
+
+  const pv = parseNum(val("p-pv"));
+  const pmt = parseNum(val("p-pmt"));
+  const i = parseNum(val("p-taxa"));
+  const n = parseNum(val("p-periodos"));
+  const carenciaVal = parseNum(val("p-carencia"));
+  const periodoTaxa = val("p-periodoTaxa");
+  const periodoParcela = val("p-periodoParcela");
+
+  function carenciaInvalida() {
+    return carenciaVal == null || carenciaVal < 0 || Math.abs(carenciaVal - Math.round(carenciaVal)) > 1e-6;
+  }
+  function linhaTaxaEquivalente(iFracParcela) {
+    if (periodoTaxa === periodoParcela) return [];
+    return [[`Taxa equivalente (${periodoParcela.toLowerCase()})`, fmtPct(iFracParcela * 100)]];
+  }
+
+  if (modo === "pmt") {
+    setFormula("p-result", "PMT = PV × i / (1 − (1+i)⁻ⁿ)" + sufixo);
+    if (pv == null || i == null || n == null || carenciaInvalida()) {
+      setVal("p-pmt", "");
+      limparTabelaPrice("Preencha os campos para ver a tabela.");
+      setRows("p-result", [["Prestação (PMT)", "—"]]);
+      setStatus("p-result", "Preencha todos os campos (carência precisa ser um inteiro ≥ 0).", false);
+      return;
+    }
+    let iFrac = i / 100;
+    if (periodoTaxa !== periodoParcela) iFrac = taxaEquivalente(iFrac, periodoTaxa, periodoParcela);
+    if (n <= 0) {
+      setVal("p-pmt", "");
+      setRows("p-result", [["Prestação (PMT)", "—"]]);
+      setStatus("p-result", "O prazo deve ser maior que zero.", false);
+      return;
+    }
+    const c = Math.round(carenciaVal);
+    const fatorTempo = antecipada ? (1 + iFrac) : 1.0;
+    const pvParaFormula = tipoCar === "capitaliza" ? pv * Math.pow(1 + iFrac, c) : pv;
+    if (!Number.isFinite(pvParaFormula)) {
+      setVal("p-pmt", "");
+      setRows("p-result", [["Prestação (PMT)", "—"]]);
+      setStatus("p-result", "Carência grande demais para esses valores.", false);
+      return;
+    }
+    let pmtCalc;
+    if (iFrac === 0) {
+      pmtCalc = pvParaFormula / n;
+    } else {
+      const fator = (1 - Math.pow(1 + iFrac, -n)) * fatorTempo;
+      if (fator === 0) {
+        setVal("p-pmt", "");
+        setRows("p-result", [["Prestação (PMT)", "—"]]);
+        setStatus("p-result", "Combinação de taxa e prazo inválida.", false);
+        return;
+      }
+      pmtCalc = (pvParaFormula * iFrac) / fator;
+    }
+    setVal("p-pmt", pmtCalc.toFixed(2));
+    const jurosCarencia = tipoCar === "capitaliza" ? 0 : c * pv * iFrac;
+    const totalPago = pmtCalc * n + jurosCarencia;
+    const rows = [
+      ["Prestação (PMT)", fmtMoeda(pmtCalc)],
+      ["Total pago", fmtMoeda(totalPago)],
+      ["Total de juros", fmtMoeda(totalPago - pv)],
+    ];
+    if (c > 0 && tipoCar === "paga_juros") {
+      rows.splice(1, 0, ["Juros pagos na carência (cada período)", fmtMoeda(pv * iFrac)]);
+    }
+    rows.push(...linhaTaxaEquivalente(iFrac));
+    setRows("p-result", rows);
+    setStatus("p-result", "Calculado em tempo real ✓", true);
+    atualizarTabelaPrice(pv, pmtCalc, iFrac, n, antecipada, c, tipoCar);
+
+  } else if (modo === "pv") {
+    setFormula("p-result", "PV = PMT × (1 − (1+i)⁻ⁿ) / i" + sufixo);
+    if (pmt == null || i == null || n == null || carenciaInvalida()) {
+      setVal("p-pv", "");
+      limparTabelaPrice("Preencha os campos para ver a tabela.");
+      setRows("p-result", [["Valor Presente (PV)", "—"]]);
+      setStatus("p-result", "Preencha todos os campos (carência precisa ser um inteiro ≥ 0).", false);
+      return;
+    }
+    let iFrac = i / 100;
+    if (periodoTaxa !== periodoParcela) iFrac = taxaEquivalente(iFrac, periodoTaxa, periodoParcela);
+    if (n <= 0) {
+      setVal("p-pv", "");
+      setRows("p-result", [["Valor Presente (PV)", "—"]]);
+      setStatus("p-result", "O prazo deve ser maior que zero.", false);
+      return;
+    }
+    const c = Math.round(carenciaVal);
+    const fatorTempo = antecipada ? (1 + iFrac) : 1.0;
+    const pvNoFimCarencia = iFrac === 0 ? pmt * n : (pmt * (1 - Math.pow(1 + iFrac, -n)) / iFrac) * fatorTempo;
+    let pvCalc;
+    if (tipoCar === "capitaliza") {
+      const fatorCarencia = Math.pow(1 + iFrac, c);
+      if (fatorCarencia === 0 || !Number.isFinite(fatorCarencia) || !Number.isFinite(pvNoFimCarencia)) {
+        setVal("p-pv", "");
+        setRows("p-result", [["Valor Presente (PV)", "—"]]);
+        setStatus("p-result", "Carência grande demais para esses valores.", false);
+        return;
+      }
+      pvCalc = pvNoFimCarencia / fatorCarencia;
+    } else {
+      pvCalc = pvNoFimCarencia;
+    }
+    setVal("p-pv", pvCalc.toFixed(2));
+    const jurosCarencia = tipoCar === "capitaliza" ? 0 : c * pvCalc * iFrac;
+    const totalPago = pmt * n + jurosCarencia;
+    const rows = [
+      ["Valor Presente (PV)", fmtMoeda(pvCalc)],
+      ["Total pago", fmtMoeda(totalPago)],
+      ["Total de juros", fmtMoeda(totalPago - pvCalc)],
+    ];
+    if (c > 0 && tipoCar === "paga_juros") {
+      rows.splice(1, 0, ["Juros pagos na carência (cada período)", fmtMoeda(pvCalc * iFrac)]);
+    }
+    rows.push(...linhaTaxaEquivalente(iFrac));
+    setRows("p-result", rows);
+    setStatus("p-result", "Calculado em tempo real ✓", true);
+    atualizarTabelaPrice(pvCalc, pmt, iFrac, n, antecipada, c, tipoCar);
+
+  } else if (modo === "prazo") {
+    setFormula("p-result", "n = −ln(1 − PV·i / (PMT" + (antecipada ? " × (1+i)" : "") + ")) / ln(1 + i)");
+    limparTabelaPrice("Tabela disponível apenas ao calcular Prestação ou Valor Presente.");
+    if (pv == null || pmt == null || i == null || carenciaInvalida()) {
+      setVal("p-periodos", "");
+      setRows("p-result", [["Prazo (n)", "—"]]);
+      setStatus("p-result", "Preencha todos os campos (carência precisa ser um inteiro ≥ 0).", false);
+      return;
+    }
+    let iFrac = i / 100;
+    if (periodoTaxa !== periodoParcela) iFrac = taxaEquivalente(iFrac, periodoTaxa, periodoParcela);
+    if (pmt <= 0) {
+      setVal("p-periodos", "");
+      setRows("p-result", [["Prazo (n)", "—"]]);
+      setStatus("p-result", "A prestação deve ser maior que zero.", false);
+      return;
+    }
+    const c = Math.round(carenciaVal);
+    const pvParaFormula = tipoCar === "capitaliza" ? pv * Math.pow(1 + iFrac, c) : pv;
+    if (!Number.isFinite(pvParaFormula)) {
+      setVal("p-periodos", "");
+      setRows("p-result", [["Prazo (n)", "—"]]);
+      setStatus("p-result", "Carência grande demais para esses valores.", false);
+      return;
+    }
+    const pmtEquivalente = antecipada ? pmt * (1 + iFrac) : pmt;
+    let nCalc;
+    if (iFrac === 0) {
+      nCalc = pvParaFormula / pmtEquivalente;
+    } else {
+      const base = 1 - (pvParaFormula * iFrac) / pmtEquivalente;
+      if (base <= 0) {
+        setVal("p-periodos", "");
+        setRows("p-result", [["Prazo (n)", "—"]]);
+        setStatus("p-result", "Essa prestação não cobre nem os juros do período (prazo infinito).", false);
+        return;
+      }
+      nCalc = -Math.log(base) / Math.log(1 + iFrac);
+    }
+    setVal("p-periodos", nCalc.toFixed(4));
+    const jurosCarencia = tipoCar === "capitaliza" ? 0 : c * pv * iFrac;
+    const rowsPrazo = [
+      ["Prazo (n)", fmtNum(nCalc)],
+      ["Total pago (aprox.)", fmtMoeda(pmt * nCalc + jurosCarencia)],
+    ];
+    rowsPrazo.push(...linhaTaxaEquivalente(iFrac));
+    setRows("p-result", rowsPrazo);
+    setStatus("p-result", "Calculado em tempo real ✓", true);
+
+  } else { // taxa — busca numérica (bisseção)
+    setFormula("p-result", "i tal que PV = PMT · (1 − (1+i)⁻ⁿ) / i" + sufixo + "   (busca numérica)");
+    limparTabelaPrice("Tabela disponível apenas ao calcular Prestação ou Valor Presente.");
+    if (pv == null || pmt == null || n == null || carenciaInvalida()) {
+      setVal("p-taxa", "");
+      setRows("p-result", [["Taxa (i)", "—"]]);
+      setStatus("p-result", "Preencha todos os campos (carência precisa ser um inteiro ≥ 0).", false);
+      return;
+    }
+    if (pv <= 0 || pmt <= 0 || n <= 0) {
+      setVal("p-taxa", "");
+      setRows("p-result", [["Taxa (i)", "—"]]);
+      setStatus("p-result", "PV, PMT e prazo devem ser maiores que zero.", false);
+      return;
+    }
+    const c = Math.round(carenciaVal);
+
+    function pvTeorico(iFrac) {
+      const fatorTempo = antecipada ? (1 + iFrac) : 1.0;
+      let pvNoFim;
+      if (Math.abs(iFrac) < 1e-12) {
+        pvNoFim = pmt * n * fatorTempo;
+      } else {
+        pvNoFim = (pmt * (1 - Math.pow(1 + iFrac, -n)) / iFrac) * fatorTempo;
+      }
+      if (tipoCar === "capitaliza") {
+        pvNoFim = pvNoFim / Math.pow(1 + iFrac, c);
+      }
+      if (!Number.isFinite(pvNoFim)) return iFrac < 0 ? Infinity : 0;
+      return pvNoFim;
+    }
+
+    let lo = -0.999999, hi = 10.0;
+    let fLo = pvTeorico(lo) - pv, fHi = pvTeorico(hi) - pv;
+    if (fLo * fHi > 0) {
+      setVal("p-taxa", "");
+      setRows("p-result", [["Taxa (i)", "—"]]);
+      setStatus("p-result", "Não foi possível encontrar uma taxa nesse intervalo (−99,9999% a 1.000%).", false);
+      return;
+    }
+    let iFracSolved = (lo + hi) / 2;
+    for (let iter = 0; iter < 200; iter++) {
+      const meio = (lo + hi) / 2;
+      const fMeio = pvTeorico(meio) - pv;
+      iFracSolved = meio;
+      if (Math.abs(fMeio) < 1e-9) break;
+      if ((fLo < 0) === (fMeio < 0)) { lo = meio; fLo = fMeio; } else { hi = meio; fHi = fMeio; }
+    }
+
+    const iFracExibir = periodoTaxa === periodoParcela
+      ? iFracSolved
+      : taxaEquivalente(iFracSolved, periodoParcela, periodoTaxa);
+    setVal("p-taxa", (iFracExibir * 100).toFixed(6));
+    const jurosCarencia = tipoCar === "capitaliza" ? 0 : c * pv * iFracSolved;
+    const totalPago = pmt * n + jurosCarencia;
+    const rowsTaxa = [
+      ["Taxa (i)", fmtPct(iFracExibir * 100, 6)],
+      ["Total pago", fmtMoeda(totalPago)],
+      ["Total de juros", fmtMoeda(totalPago - pv)],
+    ];
+    if (periodoTaxa !== periodoParcela) {
+      rowsTaxa.push([`Taxa por parcela (${periodoParcela.toLowerCase()})`, fmtPct(iFracSolved * 100, 6)]);
+    }
+    setRows("p-result", rowsTaxa);
+    setStatus("p-result", "Calculado em tempo real ✓ (busca numérica)", true);
+  }
+}
+
+document.getElementById("tab-price").addEventListener("input", calcPrice);
+document.getElementById("tab-price").addEventListener("change", calcPrice);
+
+// ---------------------------------------------------------------------
+// Equivalência de Taxas
+// ---------------------------------------------------------------------
+function calcEquivalencia() {
+  const i = parseNum(val("e-taxa"));
+  setFormula("e-result", "i_destino = (1 + i_origem)^(dias_destino / dias_origem) − 1");
+  if (i == null) {
+    setRows("e-result", [["Taxa equivalente", "—"]]);
+    setStatus("e-result", "Informe uma taxa válida.", false);
+    return;
+  }
+  const periodoOrigem = val("e-periodoOrigem");
+  const periodoDestino = val("e-periodoDestino");
+  const diasOrigem = DIAS_POR_PERIODO[periodoOrigem];
+  const diasDestino = DIAS_POR_PERIODO[periodoDestino];
+  const iOrigem = i / 100;
+  const iDestino = Math.pow(1 + iOrigem, diasDestino / diasOrigem) - 1;
+  setRows("e-result", [[`Taxa equivalente (${periodoDestino})`, fmtPct(iDestino * 100)]]);
+  setStatus("e-result", "Calculado em tempo real ✓", true);
+}
+
+document.getElementById("tab-equivalencia").addEventListener("input", calcEquivalencia);
+document.getElementById("tab-equivalencia").addEventListener("change", calcEquivalencia);
+
+// ---------------------------------------------------------------------
+// Inicialização
+// ---------------------------------------------------------------------
+sTrocarModo();
+cTrocarModo();
+pTrocarModo();
+calcEquivalencia();
+mostrarAba("simples");
+</script>
+</body>
+</html>
