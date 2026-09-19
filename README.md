@@ -27,22 +27,15 @@ FGV). Cobre:
   bimestral, trimestral, quadrimestral, semestral, anual), convenção
   comercial 30/360.
 
-## Versão web (`index.html`)
+## Como usar (`index.html`)
 
 Página única em HTML/CSS/JS puro (sem dependências, sem build), responsiva
 para uso no celular. Publicada via GitHub Pages:
 
 **https://joaopedro0810.github.io/financas-corporativas-calculadora/**
 
-## Versão desktop (`calculadora_financeira.py`)
-
-Aplicativo Tkinter equivalente (mesmas fórmulas, testadas em conjunto com a
-versão web). Requer apenas Python 3 com Tkinter (padrão na maioria das
-instalações):
-
-```
-python calculadora_financeira.py
-```
+Também pode ser aberta localmente, direto do arquivo `index.html`, em
+qualquer navegador.
 
 ## Convenções
 
