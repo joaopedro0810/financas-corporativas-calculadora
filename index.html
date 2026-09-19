@@ -206,6 +206,21 @@
   }
   .btn-add:hover { border-color: var(--accent); }
 
+  .fc-bloco {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; margin: 4px 0 16px 0;
+  }
+  .fc-bloco-label { color: var(--text-muted); font-size: .8rem; flex-basis: 100%; }
+  .fc-bloco input {
+    background: var(--bg-entry); color: var(--accent); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; font-family: "Consolas", monospace; font-size: .9rem;
+  }
+  .fc-bloco input:focus { outline: none; border-color: var(--accent); }
+  .fc-bloco-t { width: 100px; flex: none; }
+  .fc-bloco-v { flex: 1; min-width: 140px; }
+  .fc-bloco .btn-add { margin: 0; }
+
   /* --- Mobile: sidebar vira barra inferior fixa e rolável --- */
   @media (max-width: 860px) {
     .layout { flex-direction: column; }
@@ -465,6 +480,14 @@
       <div id="fc-linhas"></div>
       <button type="button" class="btn-add" id="fc-add">+ Adicionar período</button>
 
+      <div class="fc-bloco">
+        <span class="fc-bloco-label">Adicionar vários de uma vez:</span>
+        <input type="text" id="fc-bloco-de" placeholder="Do período" class="fc-bloco-t">
+        <input type="text" id="fc-bloco-ate" placeholder="Até o período" class="fc-bloco-t">
+        <input type="text" id="fc-bloco-valor" placeholder="Valor (repetido em todos)" class="fc-bloco-v">
+        <button type="button" class="btn-add" id="fc-bloco-add">+ Adicionar bloco</button>
+      </div>
+
       <div class="result-panel" id="fc-result">
         <div class="result-formula"></div>
         <div class="result-body"></div>
@@ -690,6 +713,41 @@ function linhaConversao(nEfetivo, periodoTaxa, periodoPrazo) {
 
 function taxaEquivalente(iFrac, periodoOrigem, periodoDestino) {
   return Math.pow(1 + iFrac, DIAS_POR_PERIODO[periodoDestino] / DIAS_POR_PERIODO[periodoOrigem]) - 1;
+}
+
+// Busca uma taxa i tal que fn(i) = 0. Em vez de bissectar direto entre dois
+// extremos fixos (o que estoura para números double quando há muitos
+// períodos — ex.: 1/(0.000001)^51 excede o maior double representável e
+// vira Infinity), escaneia uma grade de taxas "seguras" à procura de um par
+// consecutivo com troca de sinal, e só então bissecta dentro desse par.
+function encontrarRaiz(fn) {
+  const candidatos = [
+    -0.99, -0.95, -0.9, -0.8, -0.6, -0.4, -0.2, -0.1, -0.05, -0.02, 0,
+    0.02, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10,
+  ];
+  let taxaAnt = null, valorAnt = null;
+  for (const taxa of candidatos) {
+    let valor;
+    try { valor = fn(taxa); } catch (e) { valor = NaN; }
+    if (!Number.isFinite(valor)) { taxaAnt = null; valorAnt = null; continue; }
+    if (valor === 0) return taxa;
+    if (valorAnt != null && (valorAnt < 0) !== (valor < 0)) {
+      let lo = taxaAnt, hi = taxa, fLo = valorAnt;
+      let raiz = (lo + hi) / 2;
+      for (let iter = 0; iter < 200; iter++) {
+        const meio = (lo + hi) / 2;
+        const fMeio = fn(meio);
+        if (!Number.isFinite(fMeio)) break;
+        raiz = meio;
+        if (Math.abs(fMeio) < 1e-9) break;
+        if ((fLo < 0) === (fMeio < 0)) { lo = meio; fLo = fMeio; } else { hi = meio; }
+      }
+      return raiz;
+    }
+    taxaAnt = taxa;
+    valorAnt = valor;
+  }
+  return null;
 }
 
 function val(id) { return document.getElementById(id).value; }
@@ -1235,21 +1293,12 @@ function calcPrice() {
       return pvNoFim;
     }
 
-    let lo = -0.999999, hi = 10.0;
-    let fLo = pvTeorico(lo) - pv, fHi = pvTeorico(hi) - pv;
-    if (fLo * fHi > 0) {
+    const iFracSolved = encontrarRaiz((iFrac) => pvTeorico(iFrac) - pv);
+    if (iFracSolved == null) {
       setVal("p-taxa", "");
       setRows("p-result", [["Taxa (i)", "—"]]);
-      setStatus("p-result", "Não foi possível encontrar uma taxa nesse intervalo (−99,9999% a 1.000%).", false);
+      setStatus("p-result", "Não foi possível encontrar uma taxa plausível para esses valores.", false);
       return;
-    }
-    let iFracSolved = (lo + hi) / 2;
-    for (let iter = 0; iter < 200; iter++) {
-      const meio = (lo + hi) / 2;
-      const fMeio = pvTeorico(meio) - pv;
-      iFracSolved = meio;
-      if (Math.abs(fMeio) < 1e-9) break;
-      if ((fLo < 0) === (fMeio < 0)) { lo = meio; fLo = fMeio; } else { hi = meio; fHi = fMeio; }
     }
 
     const iFracExibir = periodoTaxa === periodoParcela
@@ -1295,6 +1344,21 @@ document.getElementById("fc-add").addEventListener("click", () => {
     if (ts.length) proximoT = Math.max(...ts) + 1;
   }
   fcAddRow(proximoT, "");
+  calcFluxo();
+});
+
+document.getElementById("fc-bloco-add").addEventListener("click", () => {
+  const de = parseNum(val("fc-bloco-de"));
+  const ate = parseNum(val("fc-bloco-ate"));
+  const valor = val("fc-bloco-valor").trim();
+  if (de == null || ate == null || valor === "") return;
+  const inicio = Math.round(Math.min(de, ate));
+  const fim = Math.round(Math.max(de, ate));
+  if (fim - inicio > 2000) return; // trava de segurança contra intervalos absurdos
+  for (let t = inicio; t <= fim; t++) fcAddRow(t, valor);
+  setVal("fc-bloco-de", "");
+  setVal("fc-bloco-ate", "");
+  setVal("fc-bloco-valor", "");
   calcFluxo();
 });
 
@@ -1368,18 +1432,7 @@ function calcFluxo() {
     for (const { t, v } of linhas) total += v / Math.pow(1 + taxa, t);
     return total;
   }
-  let lo = -0.999999, hi = 10.0;
-  let fLo = vplDe(lo), fHi = vplDe(hi);
-  let tir = null;
-  if (Number.isFinite(fLo) && Number.isFinite(fHi) && fLo * fHi <= 0) {
-    for (let iter = 0; iter < 200; iter++) {
-      const meio = (lo + hi) / 2;
-      const fMeio = vplDe(meio);
-      tir = meio;
-      if (Math.abs(fMeio) < 1e-7) break;
-      if ((fLo < 0) === (fMeio < 0)) { lo = meio; fLo = fMeio; } else { hi = meio; fHi = fMeio; }
-    }
-  }
+  const tir = encontrarRaiz(vplDe);
 
   const rows = [
     ["VPL", fmtMoeda(vpl)],
