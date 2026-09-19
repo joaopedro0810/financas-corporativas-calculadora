@@ -263,6 +263,7 @@
     <button class="navbtn" data-tab="perpetuidade"><span class="icon">♾️</span><span>Perpetuidade</span></button>
     <button class="navbtn" data-tab="capital"><span class="icon">🏛️</span><span>Custo de Capital</span></button>
     <button class="navbtn" data-tab="giro"><span class="icon">🔁</span><span>Capital de Giro</span></button>
+    <button class="navbtn" data-tab="equilibrio"><span class="icon">⚖️</span><span>Ponto de Equilíbrio</span></button>
     <button class="navbtn" data-tab="equivalencia"><span class="icon">🔄</span><span>Equivalência</span></button>
     <div class="hint">Todos os campos recalculam ao vivo.</div>
   </nav>
@@ -443,7 +444,7 @@
 
     <!-- ======================= FLUXO DE CAIXA: VPL / TIR / PAYBACK / ILL ======================= -->
     <section class="panel" id="tab-fluxo" hidden>
-      <h2>Fluxo de Caixa — VPL, TIR, Payback e ILL</h2>
+      <h2>Fluxo de Caixa — VPL, TIR, TIR-M, Payback e ILL</h2>
       <div class="desc">
         VPL = Σ CFₜ / (1+i)ᵗ &nbsp;|&nbsp; TIR: i tal que VPL = 0 &nbsp;|&nbsp; ILL = VPL / Investimento —
         monte o fluxo completo (período 0 = investimento inicial, normalmente negativo; os demais
@@ -469,6 +470,21 @@
         <div class="result-body"></div>
         <div class="result-status"></div>
       </div>
+
+      <div class="subsection">TIR-M (Taxa Interna de Retorno Modificada / MIRR)</div>
+      <div class="desc">
+        Usa duas taxas: uma para financiar as saídas de caixa e outra para reinvestir as entradas —
+        mais realista que a TIR quando essas taxas são diferentes. Reaproveita o mesmo fluxo acima.
+      </div>
+      <div class="fields-row">
+        <div class="field"><label>Taxa de captação (empréstimos, %)</label><input id="fc-captacao" value="20"></div>
+        <div class="field"><label>Taxa de aplicação (investimentos, %)</label><input id="fc-aplicacao" value="25"></div>
+      </div>
+      <div class="result-panel" id="fcm-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
     </section>
 
     <!-- ======================= PERPETUIDADE ======================= -->
@@ -476,13 +492,17 @@
       <h2>Perpetuidade</h2>
       <div class="desc">
         PV = FC₁ / (i − g) — fluxo de caixa perpétuo, com ou sem crescimento constante (modelo de
-        Gordon). Deixe g = 0 para uma perpetuidade simples. Exige i &gt; g.
+        Gordon). Deixe g = 0 para uma perpetuidade simples. Exige i &gt; g. Informe o investimento
+        inicial (opcional) para obter o VPL do projeto como um todo.
       </div>
 
       <div class="fields-row">
-        <div class="field"><label>Fluxo de caixa (FC₁, primeiro período)</label><input id="pp-fc" value="2500"></div>
-        <div class="field"><label>Taxa de desconto i (%)</label><input id="pp-taxa" value="0.8"></div>
-        <div class="field"><label>Crescimento g (%, opcional)</label><input id="pp-g" value="0.1"></div>
+        <div class="field"><label>Fluxo de caixa (FC₁, primeiro período)</label><input id="pp-fc" value="9300000"></div>
+        <div class="field"><label>Taxa de desconto i (%)</label><input id="pp-taxa" value="15"></div>
+        <div class="field"><label>Crescimento g (%, opcional)</label><input id="pp-g" value="10"></div>
+      </div>
+      <div class="fields-row">
+        <div class="field"><label>Investimento no instante zero (opcional)</label><input id="pp-investimento" value="150000000"></div>
       </div>
 
       <div class="result-panel" id="pp-result">
@@ -543,11 +563,10 @@
     <section class="panel" id="tab-giro" hidden>
       <h2>Capital de Giro (NCG)</h2>
       <div class="desc">
-        NCG = Estoques + Duplicatas a Receber − Fornecedores &nbsp;|&nbsp;
-        PME = (Estoques / CMV) × 360 &nbsp;|&nbsp; PMR = (Duplicatas a Receber / Vendas a Prazo) × 360
-        &nbsp;|&nbsp; PMP = (Fornecedores / Desembolso Anual) × 360 &nbsp;|&nbsp;
-        Ciclo Operacional = PME + PMR &nbsp;|&nbsp; Ciclo Financeiro = Ciclo Operacional − PMP
-        (base: ano comercial de 360 dias)
+        PME = 360 × Estoques / CMV &nbsp;|&nbsp; PMR = 360 × Duplicatas a Receber / Vendas a Prazo
+        &nbsp;|&nbsp; PMP = 360 × Fornecedores / CMV &nbsp;|&nbsp; Ciclo Operacional = PME + PMR
+        &nbsp;|&nbsp; Ciclo Financeiro = Ciclo Operacional − PMP &nbsp;|&nbsp;
+        NCG = Desembolso Anual × (Ciclo Financeiro / 360)
       </div>
 
       <div class="fields-row">
@@ -562,6 +581,36 @@
       </div>
 
       <div class="result-panel" id="cg-result">
+        <div class="result-formula"></div>
+        <div class="result-body"></div>
+        <div class="result-status"></div>
+      </div>
+    </section>
+
+    <!-- ======================= PONTO DE EQUILÍBRIO ======================= -->
+    <section class="panel" id="tab-equilibrio" hidden>
+      <h2>Ponto de Equilíbrio</h2>
+      <div class="desc">
+        Operacional = CF / (Preço − CV) &nbsp;|&nbsp; Contábil = (CF + Depreciação) / (Preço − CV)
+        &nbsp;|&nbsp; Econômico = (CF×(1−IR) + Prestação − IR×Depreciação) / ((Preço − CV)×(1−IR))
+        — Prestação é o custo de capital do investimento anualizado (Sistema Price).
+      </div>
+
+      <div class="fields-row">
+        <div class="field"><label>Investimento inicial ($)</label><input id="be-investimento" value="120000"></div>
+        <div class="field"><label>Custo fixo total — CF ($)</label><input id="be-cf" value="23000"></div>
+      </div>
+      <div class="fields-row">
+        <div class="field"><label>Custo variável unitário ($)</label><input id="be-cv" value="23"></div>
+        <div class="field"><label>Preço de venda unitário ($)</label><input id="be-preco" value="50"></div>
+      </div>
+      <div class="fields-row">
+        <div class="field"><label>Custo de capital (%, ao ano)</label><input id="be-custocapital" value="10"></div>
+        <div class="field"><label>Vida útil (anos)</label><input id="be-vidautil" value="5"></div>
+        <div class="field"><label>Alíquota de IR (%)</label><input id="be-ir" value="20"></div>
+      </div>
+
+      <div class="result-panel" id="be-result">
         <div class="result-formula"></div>
         <div class="result-body"></div>
         <div class="result-status"></div>
@@ -1299,6 +1348,7 @@ function calcFluxo() {
       ["Payback descontado", "—"], ["ILL (VPL / Investimento)", "—"],
     ]);
     setStatus("fc-result", "Informe a taxa e ao menos um período com valor válido.", false);
+    calcMirr(linhas);
     return;
   }
 
@@ -1340,6 +1390,48 @@ function calcFluxo() {
   ];
   setRows("fc-result", rows);
   setStatus("fc-result", "Calculado em tempo real ✓", true);
+
+  calcMirr(linhas);
+}
+
+// TIR-M (MIRR): usa taxa de captação para descontar as saídas e taxa de
+// aplicação para capitalizar as entradas até o último período do fluxo.
+function calcMirr(linhas) {
+  const taxaCaptacao = parseNum(val("fc-captacao"));
+  const taxaAplicacao = parseNum(val("fc-aplicacao"));
+  setFormula(
+    "fcm-result",
+    "TIR-M = (VF dos recebimentos à taxa de aplicação / VP dos pagamentos à taxa de captação)^(1/n) − 1"
+  );
+  if (taxaCaptacao == null || taxaAplicacao == null || linhas.length === 0) {
+    setRows("fcm-result", [["TIR-M (MIRR)", "—"]]);
+    setStatus("fcm-result", "Preencha as duas taxas e o fluxo de caixa acima.", false);
+    return;
+  }
+  const n = Math.max(...linhas.map((l) => l.t));
+  if (n <= 0) {
+    setRows("fcm-result", [["TIR-M (MIRR)", "—"]]);
+    setStatus("fcm-result", "O fluxo precisa ter ao menos um período além do zero.", false);
+    return;
+  }
+  const tc = taxaCaptacao / 100, ta = taxaAplicacao / 100;
+  let fvPositivos = 0, pvNegativos = 0;
+  for (const { t, v } of linhas) {
+    if (v > 0) fvPositivos += v * Math.pow(1 + ta, n - t);
+    else if (v < 0) pvNegativos += v / Math.pow(1 + tc, t);
+  }
+  if (!(fvPositivos > 0) || !(pvNegativos < 0)) {
+    setRows("fcm-result", [["TIR-M (MIRR)", "—"]]);
+    setStatus("fcm-result", "É preciso ter ao menos um fluxo negativo e um positivo.", false);
+    return;
+  }
+  const mirr = Math.pow(fvPositivos / -pvNegativos, 1 / n) - 1;
+  setRows("fcm-result", [
+    ["VF dos recebimentos (à taxa de aplicação)", fmtMoeda(fvPositivos)],
+    ["VP dos pagamentos (à taxa de captação)", fmtMoeda(-pvNegativos)],
+    ["TIR-M (MIRR)", fmtPct(mirr * 100)],
+  ]);
+  setStatus("fcm-result", "Calculado em tempo real ✓", true);
 }
 
 document.getElementById("tab-fluxo").addEventListener("input", calcFluxo);
@@ -1374,7 +1466,13 @@ function calcPerpetuidade() {
     return;
   }
   const pv = fc / (iFrac - gFrac);
-  setRows("pp-result", [["Valor Presente (PV)", fmtMoeda(pv)]]);
+  const rows = [["VPL somente dos fluxos a receber", fmtMoeda(pv)]];
+  const investimento = parseNum(val("pp-investimento"));
+  if (investimento != null) {
+    rows.push(["Investimento no instante zero", fmtMoeda(investimento)]);
+    rows.push(["VPL do projeto como um todo", fmtMoeda(pv - investimento)]);
+  }
+  setRows("pp-result", rows);
   setStatus("pp-result", "Calculado em tempo real ✓", true);
 }
 
@@ -1454,33 +1552,121 @@ function calcGiro() {
   const cmv = parseNum(val("cg-cmv"));
   const desembolso = parseNum(val("cg-desembolso"));
 
-  setFormula("cg-result", "NCG = Estoques + Duplicatas a Receber − Fornecedores");
-  if (estoques == null || duplicatas == null || fornecedores == null) {
-    setRows("cg-result", [["NCG (Necessidade de Capital de Giro)", "—"]]);
-    setStatus("cg-result", "Preencha estoques, duplicatas a receber e fornecedores.", false);
+  setFormula("cg-result", "NCG = Desembolso Anual × (Ciclo Financeiro / 360)");
+
+  const rows = [];
+  let pme = null, pmr = null, pmp = null;
+  if (estoques != null && cmv) {
+    pme = (360 * estoques) / cmv;
+    rows.push(["PME (Prazo Médio de Estocagem)", `${fmtNum(pme, 1)} dias`]);
+  }
+  if (duplicatas != null && vendas) {
+    pmr = (360 * duplicatas) / vendas;
+    rows.push(["PMR (Prazo Médio de Recebimento)", `${fmtNum(pmr, 1)} dias`]);
+  }
+  if (fornecedores != null && cmv) {
+    pmp = (360 * fornecedores) / cmv;
+    rows.push(["PMP (Prazo Médio de Pagamento)", `${fmtNum(pmp, 1)} dias`]);
+  }
+
+  if (pme == null || pmr == null || pmp == null) {
+    rows.push(["NCG (Necessidade de Capital de Giro)", "—"]);
+    setRows("cg-result", rows);
+    setStatus("cg-result", "Preencha estoques, duplicatas, fornecedores, CMV e vendas a prazo.", false);
     return;
   }
 
-  const ncg = estoques + duplicatas - fornecedores;
-  const rows = [["NCG (Necessidade de Capital de Giro)", fmtMoeda(ncg)]];
+  const cicloOp = pme + pmr;
+  const cicloFin = cicloOp - pmp;
+  rows.push(["Ciclo Operacional (PME + PMR)", `${fmtNum(cicloOp, 1)} dias`]);
+  rows.push(["Ciclo Financeiro (Ciclo Op. − PMP)", `${fmtNum(cicloFin, 1)} dias`]);
 
-  let pme = null, pmr = null, pmp = null;
-  if (cmv) { pme = (estoques / cmv) * 360; rows.push(["PME (Prazo Médio de Estocagem)", `${fmtNum(pme, 1)} dias`]); }
-  if (vendas) { pmr = (duplicatas / vendas) * 360; rows.push(["PMR (Prazo Médio de Recebimento)", `${fmtNum(pmr, 1)} dias`]); }
-  if (desembolso) { pmp = (fornecedores / desembolso) * 360; rows.push(["PMP (Prazo Médio de Pagamento)", `${fmtNum(pmp, 1)} dias`]); }
-  if (pme != null && pmr != null) {
-    const cicloOp = pme + pmr;
-    rows.push(["Ciclo Operacional (PME + PMR)", `${fmtNum(cicloOp, 1)} dias`]);
-    if (pmp != null) {
-      rows.push(["Ciclo Financeiro (Ciclo Op. − PMP)", `${fmtNum(cicloOp - pmp, 1)} dias`]);
-    }
+  if (cicloFin === 0 || desembolso == null) {
+    rows.push(["NCG (Necessidade de Capital de Giro)", "—"]);
+    setRows("cg-result", rows);
+    setStatus(
+      "cg-result",
+      cicloFin === 0 ? "O ciclo financeiro não pode ser zero." : "Informe o desembolso anual para calcular a NCG.",
+      false
+    );
+    return;
   }
+
+  const quantCiclos = 360 / cicloFin;
+  const ncg = desembolso / quantCiclos;
+  rows.push(["Ciclos financeiros por ano (360 / Ciclo Fin.)", fmtNum(quantCiclos, 2)]);
+  rows.push(["NCG (Necessidade de Capital de Giro)", fmtMoeda(ncg)]);
   setRows("cg-result", rows);
   setStatus("cg-result", "Calculado em tempo real ✓", true);
 }
 
 document.getElementById("tab-giro").addEventListener("input", calcGiro);
 document.getElementById("tab-giro").addEventListener("change", calcGiro);
+
+// ---------------------------------------------------------------------
+// Ponto de Equilíbrio (Operacional, Contábil, Econômico)
+// ---------------------------------------------------------------------
+function calcEquilibrio() {
+  const investimento = parseNum(val("be-investimento"));
+  const cf = parseNum(val("be-cf"));
+  const cv = parseNum(val("be-cv"));
+  const preco = parseNum(val("be-preco"));
+  const custoCapital = parseNum(val("be-custocapital"));
+  const vidaUtil = parseNum(val("be-vidautil"));
+  const ir = parseNum(val("be-ir"));
+
+  setFormula("be-result", "PE = Custos / (Preço − Custo Variável)");
+
+  if (cf == null || cv == null || preco == null) {
+    setRows("be-result", [["Ponto de Equilíbrio Operacional", "—"]]);
+    setStatus("be-result", "Preencha o custo fixo, o custo variável e o preço de venda.", false);
+    return;
+  }
+  const margem = preco - cv;
+  if (margem === 0) {
+    setRows("be-result", [["Ponto de Equilíbrio Operacional", "—"]]);
+    setStatus("be-result", "O preço de venda não pode ser igual ao custo variável.", false);
+    return;
+  }
+
+  const peOperacional = cf / margem;
+  const rows = [["Operacional (unidades)", fmtNum(peOperacional, 2)]];
+
+  if (investimento != null && vidaUtil) {
+    const depreciacao = investimento / vidaUtil;
+    const peContabil = (cf + depreciacao) / margem;
+    rows.push(["Depreciação anual (Investimento / Vida útil)", fmtMoeda(depreciacao)]);
+    rows.push(["Contábil (unidades)", fmtNum(peContabil, 2)]);
+
+    if (custoCapital != null) {
+      const i = custoCapital / 100;
+      let prestacao = null;
+      if (i === 0) {
+        prestacao = investimento / vidaUtil;
+      } else {
+        const fator = 1 - Math.pow(1 + i, -vidaUtil);
+        if (fator !== 0) prestacao = (investimento * i) / fator;
+      }
+      if (prestacao != null) {
+        rows.push(["Custo de capital anualizado (prestação)", fmtMoeda(prestacao)]);
+        if (ir != null) {
+          const irFrac = ir / 100;
+          const numEcon = cf * (1 - irFrac) + prestacao - irFrac * depreciacao;
+          const denEcon = margem * (1 - irFrac);
+          if (denEcon !== 0) {
+            rows.push(["Econômico (unidades)", fmtNum(numEcon / denEcon, 2)]);
+          }
+        }
+      }
+    }
+  }
+
+  setRows("be-result", rows);
+  setStatus("be-result", "Calculado em tempo real ✓", true);
+}
+
+document.getElementById("tab-equilibrio").addEventListener("input", calcEquilibrio);
+document.getElementById("tab-equilibrio").addEventListener("change", calcEquilibrio);
 
 // ---------------------------------------------------------------------
 // Equivalência de Taxas
@@ -1516,6 +1702,7 @@ calcFluxo();
 calcPerpetuidade();
 calcCMPC();
 calcGiro();
+calcEquilibrio();
 calcEquivalencia();
 mostrarAba("simples");
 </script>

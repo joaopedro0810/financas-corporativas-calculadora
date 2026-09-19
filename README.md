@@ -14,18 +14,25 @@ FGV). Cobre:
   Postecipadas (END) ou Antecipadas (BEGIN); carência com capitalização de
   juros ou pagamento de juros à parte; taxa em periodicidade diferente da
   parcela; tabela de amortização completa.
-- **Fluxo de Caixa (VPL / TIR / Payback / ILL)** — fluxo de caixa livre
-  (períodos e valores editáveis), Valor Presente Líquido, Taxa Interna de
-  Retorno (busca numérica), Payback simples e descontado, Índice de
-  Lucratividade Líquida.
-- **Perpetuidade** — com ou sem crescimento constante (modelo de Gordon).
+- **Fluxo de Caixa (VPL / TIR / TIR-M / Payback / ILL)** — fluxo de caixa
+  livre (períodos e valores editáveis), Valor Presente Líquido, Taxa Interna
+  de Retorno (busca numérica), TIR-M/MIRR (taxas de captação e aplicação
+  distintas), Payback simples e descontado, Índice de Lucratividade Líquida.
+- **Perpetuidade** — com ou sem crescimento constante (modelo de Gordon),
+  incluindo o VPL do projeto como um todo (perpetuidade menos o investimento
+  inicial).
 - **Custo de Capital** — CAPM (custo do capital próprio), custo de capital de
   terceiros líquido de IR, e CMPC/WACC.
-- **Capital de Giro (NCG)** — Necessidade de Capital de Giro, PME, PMR, PMP,
-  Ciclo Operacional e Ciclo Financeiro.
+- **Capital de Giro (NCG)** — PME, PMR, PMP, Ciclo Operacional, Ciclo
+  Financeiro e NCG = Desembolso Anual × (Ciclo Financeiro / 360).
+- **Ponto de Equilíbrio** — Operacional, Contábil (com depreciação) e
+  Econômico (com custo de capital anualizado via Sistema Price).
 - **Equivalência de Taxas** — conversão entre periodicidades (diária, mensal,
   bimestral, trimestral, quadrimestral, semestral, anual), convenção
   comercial 30/360.
+
+Todas as fórmulas foram conferidas contra a planilha oficial da disciplina
+(`Todas Planilhas para Finanças.xlsx`) e os exemplos numéricos dela.
 
 ## Como usar (`index.html`)
 
